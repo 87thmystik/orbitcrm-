@@ -1,0 +1,183 @@
+﻿@page "/deals/{Id:guid}"
+@rendermode Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer
+
+@using OrbitCRM.Application.Activities.Interfaces
+@using OrbitCRM.Application.Deals.DTOs
+@using OrbitCRM.Application.Deals.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject IDealService DealService
+@inject IActivityService ActivityService
+@inject NavigationManager Nav
+
+<PageTitle>@(_deal?.Name ?? "Deal") · OrbitCRM</PageTitle>
+
+<div class="max-w-3xl">
+    <button class="text-sm text-slate-500 hover:text-slate-700 mb-4" @onclick="BackToList">
+        ← Back to Deals
+    </button>
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else if (_deal is null)
+    {
+        <div class="bg-white border border-slate-200 rounded-lg p-6">
+            <p class="text-slate-500 text-sm">Deal not found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-semibold text-slate-900">@_deal.Name</h1>
+                <div class="flex gap-3 items-center mt-2">
+                    <StageBadge Name="_deal.PipelineStageName" Color="_deal.PipelineStageColor" />
+                    <DealStatusBadge Status="_deal.Status" />
+                    <span class="text-sm text-slate-500">@_deal.PipelineStageProbability% probability</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                @if (_deal.Status == DealStatus.Open)
+                {
+                    <button class="px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md"
+                            @onclick="OpenWonConfirm">Mark Won</button>
+                    <button class="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md"
+                            @onclick="OpenLostConfirm">Mark Lost</button>
+                }
+                <button class="px-3 py-1.5 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                        @onclick="GoToEdit">Edit</button>
+                <button class="px-3 py-1.5 text-sm border border-red-300 text-red-700 rounded-md hover:bg-red-50"
+                        @onclick="OpenDeleteConfirm">Delete</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+                @_errorMessage
+            </div>
+        }
+
+        <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+            <ReadOnlyRow Label="Value" Value="@_deal.Value.ToString("C0")" />
+            <ReadOnlyRow Label="Expected Close" Value="@(_deal.ExpectedCloseDate?.ToLocalTime().ToString("MMM d, yyyy") ?? "—")" />
+            <ReadOnlyRow Label="Customer" Value="@(_deal.CustomerName ?? "—")" />
+            <ReadOnlyRow Label="Lead" Value="@(_deal.LeadName ?? "—")" />
+            <ReadOnlyRow Label="Description" Value="@(_deal.Description ?? "—")" />
+            <ReadOnlyRow Label="Created" Value="@_deal.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")" />
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1">
+                <QuickActivityForm DealId="Id" OnSaved="ReloadTimeline" />
+            </div>
+            <div class="lg:col-span-2">
+                <div class="bg-white border border-slate-200 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-slate-700 mb-3">Activity Timeline</h3>
+                    <ActivityTimeline Activities="_activities" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<ConfirmDialog IsOpen="_showDeleteConfirm"
+               Title="Delete deal?"
+               Message="This will hide the deal from all views."
+               ConfirmLabel="Delete"
+               Busy="_working"
+               OnConfirm="HandleDelete"
+               OnCancel="CloseDeleteConfirm" />
+
+<ConfirmDialog IsOpen="_showWonConfirm"
+               Title="Mark deal as won?"
+               Message="This will move the deal to the final stage and record it as Won."
+               ConfirmLabel="Mark Won"
+               Destructive="false"
+               Busy="_working"
+               OnConfirm="HandleWon"
+               OnCancel="CloseWonConfirm" />
+
+<ConfirmDialog IsOpen="_showLostConfirm"
+               Title="Mark deal as lost?"
+               Message="This will move the deal to the losing stage and record it as Lost."
+               ConfirmLabel="Mark Lost"
+               Busy="_working"
+               OnConfirm="HandleLost"
+               OnCancel="CloseLostConfirm" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private DealDto? _deal;
+    private List<ActivityDto> _activities = new();
+    private bool _loading = true;
+    private bool _working;
+    private bool _showDeleteConfirm;
+    private bool _showWonConfirm;
+    private bool _showLostConfirm;
+    private string? _errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _deal = await DealService.GetByIdAsync(Id);
+        _activities = await ActivityService.GetTimelineForDealAsync(Id);
+        _loading = false;
+
+        if (_deal is null) Nav.NavigateTo("/deals");
+    }
+
+    private async Task ReloadTimeline()
+    {
+        _activities = await ActivityService.GetTimelineForDealAsync(Id);
+        StateHasChanged();
+    }
+
+    private void BackToList() => Nav.NavigateTo("/deals");
+    private void GoToEdit() => Nav.NavigateTo($"/deals/{Id}/edit");
+    private void OpenDeleteConfirm() => _showDeleteConfirm = true;
+    private void OpenWonConfirm() => _showWonConfirm = true;
+    private void OpenLostConfirm() => _showLostConfirm = true;
+    private void CloseDeleteConfirm() => _showDeleteConfirm = false;
+    private void CloseWonConfirm() => _showWonConfirm = false;
+    private void CloseLostConfirm() => _showLostConfirm = false;
+
+    private async Task HandleDelete()
+    {
+        _working = true;
+        try
+        {
+            var result = await DealService.DeleteAsync(Id);
+            if (result.IsSuccess) Nav.NavigateTo("/deals");
+            else { _errorMessage = result.Error; _showDeleteConfirm = false; }
+        }
+        finally { _working = false; }
+    }
+
+    private async Task HandleWon()
+    {
+        _working = true;
+        try
+        {
+            var result = await DealService.MarkAsWonAsync(Id);
+            if (result.IsSuccess) { _showWonConfirm = false; _deal = await DealService.GetByIdAsync(Id); }
+            else { _errorMessage = result.Error; _showWonConfirm = false; }
+        }
+        finally { _working = false; }
+    }
+
+    private async Task HandleLost()
+    {
+        _working = true;
+        try
+        {
+            var result = await DealService.MarkAsLostAsync(Id);
+            if (result.IsSuccess) { _showLostConfirm = false; _deal = await DealService.GetByIdAsync(Id); }
+            else { _errorMessage = result.Error; _showLostConfirm = false; }
+        }
+        finally { _working = false; }
+    }
+}

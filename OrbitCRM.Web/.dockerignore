@@ -1,0 +1,12 @@
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/node_modules
+**/wwwroot/css/tailwind.css.map
+**/*.user
+.git
+.gitignore
+README.md
+docs
+tests

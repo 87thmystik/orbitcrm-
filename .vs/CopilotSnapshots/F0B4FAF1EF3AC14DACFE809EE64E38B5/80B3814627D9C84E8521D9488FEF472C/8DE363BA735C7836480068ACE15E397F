@@ -1,0 +1,240 @@
+﻿@page "/pipeline"
+@rendermode InteractiveServer
+@using Microsoft.JSInterop
+@using OrbitCRM.Application.Deals.DTOs
+@using OrbitCRM.Application.Deals.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject IDealService DealService
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<PageTitle>Pipeline · OrbitCRM</PageTitle>
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Sales Pipeline</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            @if (_stages.Count == 0)
+            {
+                <span>Loading…</span>
+            }
+            else
+            {
+                <span>@_deals.Count open deal@(_deals.Count == 1 ? "" : "s") · @TotalValue.ToString("C0") total</span>
+            }
+        </p>
+    </div>
+
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md shadow-sm transition-colors"
+            @onclick="GoToNewDeal">
+        + New Deal
+    </button>
+</div>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+        @_errorMessage
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="text-slate-500 text-sm py-8">Loading pipeline…</div>
+}
+else
+{
+    <div class="flex gap-4 overflow-x-auto pb-4" id="pipeline-root">
+        @foreach (var stage in _stages)
+        {
+            var stageDeals = _deals.Where(d => d.PipelineStageId == stage.Id).ToList();
+            var stageValue = stageDeals.Sum(d => d.Value);
+
+            <div class="flex-shrink-0 w-72">
+                <div class="rounded-t-md px-3 py-2 text-white font-medium text-sm flex items-center justify-between"
+                     style="background-color: @(stage.Color ?? "#6b7280");">
+                    <span>@stage.Name</span>
+                    <span class="text-xs opacity-90">@stageDeals.Count</span>
+                </div>
+
+                <div class="bg-slate-100 rounded-b-md px-2 py-2 min-h-[400px]"
+                     data-pipeline-stage="@stage.Id">
+                    @foreach (var deal in stageDeals)
+                    {
+                        var captured = deal;
+                        <div @key="captured.Id"
+                             class="bg-white rounded-md shadow-sm border border-slate-200 p-3 mb-2 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+                             data-deal-id="@captured.Id"
+                             @onclick="() => GoToDeal(captured.Id)">
+                            <div class="font-medium text-sm text-slate-900 mb-1">@captured.Name</div>
+                            <div class="text-xs text-slate-500 mb-2">@(captured.CustomerName ?? "No customer")</div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-semibold text-slate-800">@captured.Value.ToString("C0")</span>
+                                @if (captured.ExpectedCloseDate.HasValue)
+                                {
+                                    <span class="text-xs text-slate-400">
+                                        @captured.ExpectedCloseDate.Value.ToLocalTime().ToString("MMM d")
+                                    </span>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    @if (stageDeals.Count == 0)
+                    {
+                        <div class="text-xs text-slate-400 text-center py-4 italic">
+                            Drop deals here
+                        </div>
+                    }
+                </div>
+
+                <div class="mt-2 px-1 text-xs text-slate-500 text-right">
+                    @stageValue.ToString("C0")
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<PipelineStageDto> _stages = new();
+    private List<DealDto> _deals = new();
+    private bool _loading = true;
+    private string? _errorMessage;
+    private DotNetObjectReference<Pipeline>? _dotNetRef;
+    private bool _needsReinit = true;
+
+    private decimal TotalValue => _deals.Sum(d => d.Value);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPipelineAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        _dotNetRef ??= DotNetObjectReference.Create(this);
+
+        if (_needsReinit && !_loading && _stages.Count > 0)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("pipelineInterop.init", _dotNetRef);
+                _needsReinit = false;
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit torn down — nothing to do.
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = "Pipeline init failed: " + ex.Message;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task LoadPipelineAsync()
+    {
+        _loading = true;
+        try
+        {
+            _stages = await DealService.GetPipelineStagesAsync();
+
+            var result = await DealService.GetAllAsync(page: 1, pageSize: 500);
+            _deals = result.Items.Where(d => d.Status == DealStatus.Open).ToList();
+        }
+        finally
+        {
+            _loading = false;
+            _needsReinit = true;
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnDealMoved(string dealId, string stageId)
+    {
+        _errorMessage = null;
+
+        if (!Guid.TryParse(dealId, out var dealGuid) ||
+            !Guid.TryParse(stageId, out var stageGuid))
+        {
+            _errorMessage = "Invalid drag data.";
+            StateHasChanged();
+            return;
+        }
+
+        var deal = await DealService.GetByIdAsync(dealGuid);
+        if (deal is null)
+        {
+            _errorMessage = "Deal not found.";
+            StateHasChanged();
+            return;
+        }
+
+        // No-op if the deal is already in this stage (e.g. dropped back on itself)
+        if (deal.PipelineStageId == stageGuid)
+        {
+            _needsReinit = true;
+            StateHasChanged();
+            return;
+        }
+
+        var dto = new UpdateDealDto
+        {
+            Id = deal.Id,
+            Name = deal.Name,
+            Description = deal.Description,
+            Value = deal.Value,
+            ExpectedCloseDate = deal.ExpectedCloseDate,
+            Status = deal.Status,
+            LeadId = deal.LeadId,
+            CustomerId = deal.CustomerId,
+            PipelineStageId = stageGuid
+        };
+
+        var result = await DealService.UpdateAsync(dto);
+
+        if (!result.IsSuccess)
+        {
+            _errorMessage = result.Error;
+            _needsReinit = true;
+            StateHasChanged();
+            return;
+        }
+
+        // Update in-memory state so Blazor re-renders the card in the new column
+        var existing = _deals.FirstOrDefault(d => d.Id == dealGuid);
+        if (existing is not null)
+        {
+            existing.PipelineStageId = stageGuid;
+            var stage = _stages.FirstOrDefault(s => s.Id == stageGuid);
+            if (stage is not null)
+            {
+                existing.PipelineStageName = stage.Name;
+                existing.PipelineStageColor = stage.Color;
+                existing.PipelineStageProbability = stage.Probability;
+            }
+        }
+
+        // Force Sortable to rebuild on the next render so new DOM nodes
+        // get fresh drag handlers.
+        _needsReinit = true;
+        StateHasChanged();
+    }
+
+    private void GoToNewDeal() => Nav.NavigateTo("/deals/new");
+    private void GoToDeal(Guid id) => Nav.NavigateTo("/deals/" + id.ToString());
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("pipelineInterop.dispose");
+        }
+        catch { /* Circuit tearing down, JS may be unavailable */ }
+
+        _dotNetRef?.Dispose();
+    }
+}

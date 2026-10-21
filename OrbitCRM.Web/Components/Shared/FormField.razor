@@ -1,0 +1,16 @@
+﻿<div>
+    <label class="block text-sm font-medium text-slate-700 mb-1.5">
+        @Label
+        @if (Required)
+        {
+            <span class="text-red-500">*</span>
+        }
+    </label>
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

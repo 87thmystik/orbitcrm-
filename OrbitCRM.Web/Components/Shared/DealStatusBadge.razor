@@ -1,0 +1,18 @@
+﻿@using OrbitCRM.Domain.Enums
+
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium @_css">
+    @Status
+</span>
+
+@code {
+    [Parameter] public DealStatus Status { get; set; }
+
+    private string _css => Status switch
+    {
+        DealStatus.Open => "bg-blue-100 text-blue-700",
+        DealStatus.Won => "bg-green-100 text-green-700",
+        DealStatus.Lost => "bg-red-100 text-red-700",
+        DealStatus.Abandoned => "bg-slate-100 text-slate-600",
+        _ => "bg-slate-100 text-slate-700"
+    };
+}

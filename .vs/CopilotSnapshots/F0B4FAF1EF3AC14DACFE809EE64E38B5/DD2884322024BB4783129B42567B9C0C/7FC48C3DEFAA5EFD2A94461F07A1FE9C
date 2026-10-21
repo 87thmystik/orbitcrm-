@@ -1,0 +1,183 @@
+﻿@page "/leads/{Id:guid}"
+@rendermode InteractiveServer
+
+@using OrbitCRM.Application.Activities.Interfaces
+@using OrbitCRM.Application.Leads.DTOs
+@using OrbitCRM.Application.Leads.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject ILeadService LeadService
+@inject IActivityService ActivityService
+@inject NavigationManager Nav
+
+<PageTitle>@(_lead?.FullName ?? "Lead") · OrbitCRM</PageTitle>
+
+<div class="max-w-3xl">
+    <button class="text-sm text-slate-500 hover:text-slate-700 mb-4" @onclick="BackToList">
+        ← Back to Leads
+    </button>
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else if (_lead is null)
+    {
+        <div class="bg-white border border-slate-200 rounded-lg p-6">
+            <p class="text-slate-500 text-sm">Lead not found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-semibold text-slate-900">@_lead.FullName</h1>
+                <div class="flex gap-3 items-center mt-2">
+                    <StatusBadge Status="_lead.Status" />
+                    <PriorityBadge Priority="_lead.Priority" />
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                @if (_lead.Status != LeadStatus.Converted)
+                {
+                    <button class="px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-md"
+                            @onclick="OpenConvertConfirm">Convert to Customer</button>
+                }
+                <button class="px-3 py-1.5 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                        @onclick="GoToEdit">Edit</button>
+                <button class="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md"
+                        @onclick="OpenDeleteConfirm">Delete</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_successMessage))
+        {
+            <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 text-sm rounded-md">
+                @_successMessage
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+                @_errorMessage
+            </div>
+        }
+
+        <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+            <ReadOnlyRow Label="Email" Value="@_lead.Email" />
+            <ReadOnlyRow Label="Phone" Value="@(_lead.Phone ?? "—")" />
+            <ReadOnlyRow Label="Company" Value="@(_lead.CompanyName ?? "—")" />
+            <ReadOnlyRow Label="Source" Value="@(_lead.Source ?? "—")" />
+            <ReadOnlyRow Label="Estimated Value" Value="@(_lead.EstimatedValue > 0 ? _lead.EstimatedValue.ToString("C0") : "—")" />
+            <ReadOnlyRow Label="Notes" Value="@(_lead.Notes ?? "—")" />
+            <ReadOnlyRow Label="Created" Value="@_lead.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")" />
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1">
+                <QuickActivityForm LeadId="Id" OnSaved="ReloadTimeline" />
+            </div>
+            <div class="lg:col-span-2">
+                <div class="bg-white border border-slate-200 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-slate-700 mb-3">Activity Timeline</h3>
+                    <ActivityTimeline Activities="_activities" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<ConfirmDialog IsOpen="_showDeleteConfirm"
+               Title="Delete lead?"
+               Message="This will hide the lead from all views."
+               ConfirmLabel="Delete"
+               Busy="_deleting"
+               OnConfirm="HandleDelete"
+               OnCancel="CloseDeleteConfirm" />
+
+<ConfirmDialog IsOpen="_showConvertConfirm"
+               Title="Convert to customer?"
+               Message="This will create a customer record from this lead and mark it as Converted."
+               ConfirmLabel="Convert"
+               Destructive="false"
+               Busy="_converting"
+               OnConfirm="HandleConvert"
+               OnCancel="CloseConvertConfirm" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private LeadDto? _lead;
+    private List<ActivityDto> _activities = new();
+    private bool _loading = true;
+    private bool _deleting;
+    private bool _converting;
+    private bool _showDeleteConfirm;
+    private bool _showConvertConfirm;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _lead = await LeadService.GetByIdAsync(Id);
+        _activities = await ActivityService.GetTimelineForLeadAsync(Id);
+        _loading = false;
+
+        if (_lead is null)
+        {
+            Nav.NavigateTo("/leads");
+        }
+    }
+
+    private async Task ReloadTimeline()
+    {
+        _activities = await ActivityService.GetTimelineForLeadAsync(Id);
+        StateHasChanged();
+    }
+
+    private void BackToList() => Nav.NavigateTo("/leads");
+    private void GoToEdit() => Nav.NavigateTo($"/leads/{Id}/edit");
+    private void OpenDeleteConfirm() => _showDeleteConfirm = true;
+    private void CloseDeleteConfirm() => _showDeleteConfirm = false;
+    private void OpenConvertConfirm() => _showConvertConfirm = true;
+    private void CloseConvertConfirm() => _showConvertConfirm = false;
+
+    private async Task HandleDelete()
+    {
+        _deleting = true;
+        try
+        {
+            var result = await LeadService.DeleteAsync(Id);
+            if (result.IsSuccess)
+                Nav.NavigateTo("/leads");
+            else
+            {
+                _errorMessage = result.Error;
+                _showDeleteConfirm = false;
+            }
+        }
+        finally { _deleting = false; }
+    }
+
+    private async Task HandleConvert()
+    {
+        _converting = true;
+        try
+        {
+            var result = await LeadService.ConvertToCustomerAsync(Id);
+            if (result.IsSuccess)
+            {
+                _successMessage = "Lead converted. Customer created.";
+                _showConvertConfirm = false;
+                _lead = await LeadService.GetByIdAsync(Id);
+            }
+            else
+            {
+                _errorMessage = result.Error;
+                _showConvertConfirm = false;
+            }
+        }
+        finally { _converting = false; }
+    }
+}

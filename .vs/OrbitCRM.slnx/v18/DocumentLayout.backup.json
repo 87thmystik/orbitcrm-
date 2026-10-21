@@ -1,0 +1,114 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|c:\\users\\danie\\source\\repos\\orbitcrm.web\\orbitcrm.web\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|solutionrelative:orbitcrm.web\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|c:\\users\\danie\\source\\repos\\orbitcrm.web\\orbitcrm.web\\components\\account\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|solutionrelative:orbitcrm.web\\components\\account\\login.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|c:\\users\\danie\\source\\repos\\orbitcrm.web\\orbitcrm.web\\components\\account\\resetpassword.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|solutionrelative:orbitcrm.web\\components\\account\\resetpassword.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|c:\\users\\danie\\source\\repos\\orbitcrm.web\\orbitcrm.web\\components\\account\\forgotpassword.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{4003104B-E32F-0F65-2AC2-A271C81F7F3B}|OrbitCRM.Web\\OrbitCRM.Web.csproj|solutionrelative:orbitcrm.web\\components\\account\\forgotpassword.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 162,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{e506b91c-c606-466a-90a9-123d1d1e12b3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\appsettings.json",
+              "RelativeDocumentMoniker": "OrbitCRM.Web\\appsettings.json",
+              "ToolTip": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\appsettings.json",
+              "RelativeToolTip": "OrbitCRM.Web\\appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-10-21T13:01:42.321Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Login.razor",
+              "DocumentMoniker": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\Components\\Account\\Login.razor",
+              "RelativeDocumentMoniker": "OrbitCRM.Web\\Components\\Account\\Login.razor",
+              "ToolTip": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\Components\\Account\\Login.razor",
+              "RelativeToolTip": "OrbitCRM.Web\\Components\\Account\\Login.razor",
+              "ViewState": "AgIAAFoAAAAAAAAAAAAAAGsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-10-21T12:58:05.648Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ResetPassword.razor",
+              "DocumentMoniker": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\Components\\Account\\ResetPassword.razor",
+              "RelativeDocumentMoniker": "OrbitCRM.Web\\Components\\Account\\ResetPassword.razor",
+              "ToolTip": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\Components\\Account\\ResetPassword.razor",
+              "RelativeToolTip": "OrbitCRM.Web\\Components\\Account\\ResetPassword.razor",
+              "ViewState": "AgIAAHwAAAAAAAAAAAAgwJYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-10-21T12:57:43.211Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "ForgotPassword.razor",
+              "DocumentMoniker": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\Components\\Account\\ForgotPassword.razor",
+              "RelativeDocumentMoniker": "OrbitCRM.Web\\Components\\Account\\ForgotPassword.razor",
+              "ToolTip": "C:\\Users\\danie\\source\\repos\\OrbitCRM.Web\\OrbitCRM.Web\\Components\\Account\\ForgotPassword.razor",
+              "RelativeToolTip": "OrbitCRM.Web\\Components\\Account\\ForgotPassword.razor",
+              "ViewState": "AgIAAHAAAAAAAAAAAAAgwIoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
+              "WhenOpened": "2026-10-21T12:57:23.807Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedWidth": 115,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{40ea2e6b-2121-4bb8-a43e-c83c04b51041}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

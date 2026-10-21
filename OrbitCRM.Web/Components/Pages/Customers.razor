@@ -1,0 +1,220 @@
+﻿@page "/customers"
+@rendermode @(new InteractiveServerRenderMode())
+@using Microsoft.AspNetCore.Components.Authorization
+@using OrbitCRM.Application.Common.Interfaces
+@using OrbitCRM.Application.Common.Models
+@using OrbitCRM.Application.Customers.DTOs
+@using OrbitCRM.Application.Customers.Interfaces
+@using OrbitCRM.Infrastructure.Identity
+@inject ICustomerService CustomerService
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
+@inject CurrentTenant CurrentTenant
+
+<PageTitle>Customers · OrbitCRM</PageTitle>
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Customers</h1>
+        @if (!string.IsNullOrEmpty(_loadError))
+{
+    <div class="bg-red-50 border border-red-200 text-red-800 text-xs p-3 rounded-md font-mono whitespace-pre-wrap mb-4">
+        @_loadError
+    </div>
+}
+        <p class="text-sm text-slate-500 mt-1">
+            @if (_result is null)
+            {
+                <span>Loading…</span>
+            }
+            else
+            {
+                <span>@_result.TotalCount customer@(_result.TotalCount == 1 ? "" : "s")</span>
+            }
+        </p>
+    </div>
+
+<PermissionView Permission="Customers.Create">
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md shadow-sm transition-colors"
+            @onclick="GoToNewCustomer">
+        + New Customer
+    </button>
+</PermissionView>
+</div>
+
+<div class="mb-4">
+    <input
+        type="text"
+        placeholder="Search by name, email, or company…"
+        class="w-full max-w-md px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        value="@_search"
+        @oninput="OnSearchInput" />
+</div>
+
+@if (_loading)
+{
+    <div class="flex items-center gap-2 text-slate-500 text-sm py-8">
+        <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Loading customers…
+    </div>
+}
+else if (_result is null || _result.Items.Count == 0)
+{
+    <div class="bg-white border border-slate-200 rounded-lg p-12 text-center">
+        <p class="text-slate-600 font-medium">No customers found</p>
+        <p class="text-slate-400 text-sm mt-1">
+            @if (string.IsNullOrWhiteSpace(_search))
+            {
+                <span>Add your first customer to get started.</span>
+            }
+            else
+            {
+                <span>Try a different search term.</span>
+            }
+        </p>
+    </div>
+}
+else
+{
+    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+                <tr>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Name</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Email</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Company</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Phone</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Added</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var customer in _result.Items)
+                {
+                    <tr class="hover:bg-slate-50 cursor-pointer transition-colors" @onclick="() => GoToCustomer(customer.Id)">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-900">@customer.FullName</div>
+                        </td>
+                        <td class="px-4 py-3 text-slate-600">@customer.Email</td>
+                        <td class="px-4 py-3 text-slate-600">@(customer.CompanyName ?? "—")</td>
+                        <td class="px-4 py-3 text-slate-600">@(customer.Phone ?? "—")</td>
+                        <td class="px-4 py-3 text-slate-500">@customer.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_result.TotalPages > 1)
+    {
+        <div class="flex items-center justify-between mt-4 text-sm">
+            <div class="text-slate-500">
+                Page @_result.Page of @_result.TotalPages
+            </div>
+            <div class="flex gap-2">
+                <button
+                    class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled="@(!_result.HasPrevious)"
+                    @onclick="PreviousPage">
+                    ← Previous
+                </button>
+                <button
+                    class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled="@(!_result.HasNext)"
+                    @onclick="NextPage">
+                    Next →
+                </button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private PagedResult<CustomerDto>? _result;
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private int _page = 1;
+    private const int PageSize = 10;
+    private CancellationTokenSource? _searchCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+   private string? _loadError;
+
+private async Task LoadAsync()
+{
+    _loading = true;
+    _loadError = null;
+    try
+    {
+        _result = await CustomerService.GetAllAsync(
+            page: _page,
+            pageSize: PageSize,
+            search: string.IsNullOrWhiteSpace(_search) ? null : _search);
+    }
+    catch (Exception ex)
+    {
+        _loadError = ex.ToString();
+    }
+    finally
+    {
+        _loading = false;
+    }
+}
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _page = 1;
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+            {
+                await LoadAsync();
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // Debounce — ignore
+        }
+    }
+
+    private async Task PreviousPage()
+    {
+        if (_result?.HasPrevious == true)
+        {
+            _page--;
+            await LoadAsync();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (_result?.HasNext == true)
+        {
+            _page++;
+            await LoadAsync();
+        }
+    }
+
+    private void GoToNewCustomer()
+    {
+        Nav.NavigateTo("/customers/new");
+    }
+
+    private void GoToCustomer(Guid id)
+    {
+        Nav.NavigateTo($"/customers/{id}");
+    }
+}

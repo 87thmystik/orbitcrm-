@@ -1,0 +1,56 @@
+.nav-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center; /* Centers the content block in the sidebar */
+    padding: 0.65rem 0.5rem;
+    font-size: 0.875rem;
+    text-decoration: none;
+    border-radius: 0.50rem;
+    transition: background-color 0.15s ease-in-out;
+}
+
+    /* Clear hover background with a smooth surface highlight */
+    .nav-item:hover {
+        background-color: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Active background styling */
+    .nav-item.active {
+        background: linear-gradient(90deg, rgba(59, 130, 246, 0.14) 0%, rgba(59, 130, 246, 0.03) 100%);
+    }
+
+/* Active Left Glow Indicator Pill */
+.nav-indicator {
+    position: absolute;
+    left: 0;
+    top: 25%;
+    bottom: 25%;
+    width: 3px;
+    border-radius: 0 4px 4px 0;
+    background-color: transparent;
+    transition: background-color 0.15s ease;
+}
+
+.nav-item.active .nav-indicator {
+    background-color: #3b82f6;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+}
+
+/* Sleek Scrollbar */
+nav::-webkit-scrollbar {
+    width: 4px;
+}
+
+nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+}
+
+    nav::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }

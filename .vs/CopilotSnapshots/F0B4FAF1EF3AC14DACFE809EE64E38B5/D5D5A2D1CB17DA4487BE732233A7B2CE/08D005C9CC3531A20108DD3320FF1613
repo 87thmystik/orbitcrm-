@@ -1,0 +1,210 @@
+﻿@page "/leads"
+@rendermode InteractiveServer
+
+@using OrbitCRM.Application.Leads.DTOs
+@using OrbitCRM.Application.Leads.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject ILeadService LeadService
+@inject NavigationManager Nav
+
+<PageTitle>Leads · OrbitCRM</PageTitle>
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Leads</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            @if (_result is null)
+            {
+                <span>Loading…</span>
+            }
+            else
+            {
+                <span>@_result.TotalCount lead@(_result.TotalCount == 1 ? "" : "s")</span>
+            }
+        </p>
+    </div>
+
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md shadow-sm transition-colors"
+            @onclick="GoToNewLead">
+        + New Lead
+    </button>
+</div>
+
+<div class="flex flex-wrap gap-3 mb-4">
+    <input type="text"
+           placeholder="Search by name, email, or company…"
+           class="flex-1 min-w-[240px] px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+           value="@_search"
+           @oninput="OnSearchInput" />
+
+    <select class="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            @bind="_statusFilter">
+        <option value="">All statuses</option>
+        @foreach (var s in Enum.GetValues<LeadStatus>())
+        {
+            <option value="@s">@s</option>
+        }
+    </select>
+
+    <button class="px-3 py-2 border border-slate-300 rounded-md text-sm hover:bg-slate-50"
+            @onclick="ApplyFilter">
+        Apply
+    </button>
+</div>
+
+@if (_loading)
+{
+    <div class="text-slate-500 text-sm py-8">Loading leads…</div>
+}
+else if (_result is null || _result.Items.Count == 0)
+{
+    <div class="bg-white border border-slate-200 rounded-lg p-12 text-center">
+        <p class="text-slate-600 font-medium">No leads found</p>
+        <p class="text-slate-400 text-sm mt-1">
+            @if (string.IsNullOrWhiteSpace(_search) && string.IsNullOrEmpty(_statusFilter))
+            {
+                <span>Add your first lead to get started.</span>
+            }
+            else
+            {
+                <span>Try a different search or filter.</span>
+            }
+        </p>
+    </div>
+}
+else
+{
+    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+                <tr>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Name</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Email</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Company</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Status</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Priority</th>
+                    <th class="text-right font-medium text-slate-600 px-4 py-3">Value</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Added</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var lead in _result.Items)
+                {
+                    var capturedLead = lead;
+                    <tr class="hover:bg-slate-50 cursor-pointer transition-colors"
+                        @onclick="() => GoToLead(capturedLead.Id)">
+                        <td class="px-4 py-3 font-medium text-slate-900">@capturedLead.FullName</td>
+                        <td class="px-4 py-3 text-slate-600">@capturedLead.Email</td>
+                        <td class="px-4 py-3 text-slate-600">@(capturedLead.CompanyName ?? "—")</td>
+                        <td class="px-4 py-3"><StatusBadge Status="capturedLead.Status" /></td>
+                        <td class="px-4 py-3"><PriorityBadge Priority="capturedLead.Priority" /></td>
+                        <td class="px-4 py-3 text-right text-slate-700">@(capturedLead.EstimatedValue > 0 ? capturedLead.EstimatedValue.ToString("C0") : "—")</td>
+                        <td class="px-4 py-3 text-slate-500">@capturedLead.CreatedAt.ToLocalTime().ToString("MMM d")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_result.TotalPages > 1)
+    {
+        <div class="flex items-center justify-between mt-4 text-sm">
+            <div class="text-slate-500">Page @_result.Page of @_result.TotalPages</div>
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+                        disabled="@(!_result.HasPrevious)"
+                        @onclick="PreviousPage">← Previous</button>
+                <button class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+                        disabled="@(!_result.HasNext)"
+                        @onclick="NextPage">Next →</button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private PagedResult<LeadDto>? _result;
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private string _statusFilter = string.Empty;
+    private int _page = 1;
+    private const int PageSize = 10;
+    private CancellationTokenSource? _searchCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private LeadStatus? GetStatusFilter() =>
+        Enum.TryParse<LeadStatus>(_statusFilter, out var s) ? s : null;
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _result = await LeadService.GetAllAsync(
+                page: _page,
+                pageSize: PageSize,
+                search: string.IsNullOrWhiteSpace(_search) ? null : _search,
+                status: GetStatusFilter());
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _page = 1;
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+                await LoadAsync();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task ApplyFilter()
+    {
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (_result?.HasPrevious == true)
+        {
+            _page--;
+            await LoadAsync();
+        }
+    }
+
+    private async Task NextPage()
+    {
+        if (_result?.HasNext == true)
+        {
+            _page++;
+            await LoadAsync();
+        }
+    }
+
+    private void GoToNewLead()
+    {
+        Nav.NavigateTo("/leads/new");
+    }
+
+    private void GoToLead(Guid id)
+    {
+        Nav.NavigateTo("/leads/" + id.ToString());
+    }
+}

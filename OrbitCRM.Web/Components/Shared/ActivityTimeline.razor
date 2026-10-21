@@ -1,0 +1,41 @@
+﻿@using OrbitCRM.Application.Activities.DTOs
+
+@if (_activities is null || _activities.Count == 0)
+{
+    <div class="text-sm text-slate-400 italic py-4">No activity yet.</div>
+}
+else
+{
+    <div class="space-y-3">
+        @foreach (var activity in _activities)
+        {
+            <div class="flex gap-3">
+                <ActivityIcon Type="activity.Type" />
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline justify-between gap-2">
+                        <div class="font-medium text-sm text-slate-900 truncate">@activity.Subject</div>
+                        <div class="text-xs text-slate-400 whitespace-nowrap">
+                            @activity.OccurredAt.ToLocalTime().ToString("MMM d, h:mm tt")
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(activity.Description))
+                    {
+                        <div class="text-sm text-slate-600 mt-1 whitespace-pre-wrap">@activity.Description</div>
+                    }
+                    <div class="text-xs text-slate-400 mt-1">@activity.Type</div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public List<ActivityDto>? Activities { get; set; }
+
+    private List<ActivityDto>? _activities;
+
+    protected override void OnParametersSet()
+    {
+        _activities = Activities;
+    }
+}

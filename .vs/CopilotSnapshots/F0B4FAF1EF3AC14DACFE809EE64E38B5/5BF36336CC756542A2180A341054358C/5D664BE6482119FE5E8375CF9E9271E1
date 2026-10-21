@@ -1,0 +1,45 @@
+﻿<div class="flex items-center justify-between px-4 h-14 bg-black/20">
+    <a class="text-white text-lg font-semibold tracking-tight" href="/">OrbitCRM</a>
+    <button
+        title="Toggle navigation"
+        class="md:hidden text-white p-2 rounded hover:bg-white/10"
+        @onclick="ToggleNavMenu">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+    </button>
+</div>
+
+<div class="@NavMenuClasses">
+    <nav class="flex flex-col py-2">
+        <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Dashboard</NavLink>
+        <NavLink class="nav-link" href="/customers">Customers</NavLink>
+        <NavLink class="nav-link" href="/leads">Leads</NavLink>
+        <NavLink class="nav-link" href="/pipeline">Pipeline</NavLink>
+        <NavLink class="nav-link" href="/tasks">Tasks</NavLink>
+        <NavLink class="nav-link" href="/reports">Reports</NavLink>
+        <NavLink class="nav-link" href="/settings/company">Settings</NavLink>
+        <NavLink class="nav-link" href="/deals">Deals</NavLink>
+        <NavLink class="nav-link" href="/pipeline">Pipeline</NavLink>
+        <NavLink class="nav-link" href="/activities">Activities</NavLink>
+
+    <PermissionView Permission="Users.Manage">
+    <NavLink class="nav-link" href="/settings/users">Users</NavLink>
+    </PermissionView>
+    <PermissionView Permission="Tenant.Manage">
+    <NavLink class="nav-link" href="/settings/company">Company</NavLink>
+    </PermissionView>
+
+    </nav>
+<PermissionView Permission="Users.Manage">
+    <NavLink class="nav-link" href="/settings/pipeline-stages">Pipeline Stages</NavLink>
+</PermissionView>
+</div>
+
+@code {
+    private bool _collapsed = true;
+
+    private string NavMenuClasses => _collapsed ? "hidden md:block" : "block md:block";
+
+    private void ToggleNavMenu() => _collapsed = !_collapsed;
+}

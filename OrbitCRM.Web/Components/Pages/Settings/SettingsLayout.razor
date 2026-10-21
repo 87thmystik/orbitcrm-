@@ -1,0 +1,48 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Authorization
+
+<div class="flex flex-col md:flex-row gap-8 max-w-5xl mx-auto mt-4">
+    <!-- Settings Sidebar -->
+    <aside class="md:w-56 shrink-0">
+
+        <!-- Back to Dashboard Link -->
+        <a href="/" class="inline-flex items-center gap-2 px-3 py-2 mb-6 text-sm font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Dashboard
+        </a>
+
+        <h2 class="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3 px-3">Settings</h2>
+        <nav class="flex flex-col space-y-1">
+            <PermissionView Permission="Tenant.Manage">
+                <NavLink class="block px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&.active]:bg-blue-50 [&.active]:text-blue-700 [&.active]:font-medium transition-colors" href="/settings/company">
+                    Company Profile
+                </NavLink>
+            </PermissionView>
+
+            <PermissionView Permission="Users.Manage">
+                <NavLink class="block px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&.active]:bg-blue-50 [&.active]:text-blue-700 [&.active]:font-medium transition-colors" href="/settings/users">
+                    Users & Roles
+                </NavLink>
+            </PermissionView>
+
+            <PermissionView Permission="Users.Manage">
+                <NavLink class="block px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&.active]:bg-blue-50 [&.active]:text-blue-700 [&.active]:font-medium transition-colors" href="/settings/pipeline-stages">
+                    Pipeline Stages
+                </NavLink>
+            </PermissionView>
+
+            <PermissionView Permission="Users.Manage">
+                <NavLink class="block px-3 py-2 text-sm rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 [&.active]:bg-blue-50 [&.active]:text-blue-700 [&.active]:font-medium transition-colors" href="/settings/audit">
+                    Audit Log
+                </NavLink>
+            </PermissionView>
+        </nav>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-sm min-h-[500px]">
+        @Body
+    </div>
+</div>

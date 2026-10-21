@@ -1,0 +1,348 @@
+﻿@page "/settings/pipeline-stages"
+@layout OrbitCRM.Web.Components.Pages.Settings.SettingsLayout
+@using Microsoft.AspNetCore.Components.Web
+@rendermode @(new InteractiveServerRenderMode())
+@attribute [Authorize(Policy = "Users.Manage")]
+@using Microsoft.AspNetCore.Authorization
+@using OrbitCRM.Application.Settings.DTOs
+@using OrbitCRM.Application.Settings.Interfaces
+@inject ISettingsService SettingsService
+
+<PageTitle>Pipeline Stages · OrbitCRM</PageTitle>
+
+<div class="max-w-4xl">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-900">Pipeline Stages</h1>
+            <p class="text-sm text-slate-500 mt-1">Customize the stages your deals move through.</p>
+        </div>
+
+        <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md"
+                @onclick="OpenCreate">
+            + Add Stage
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">@_error</div>
+    }
+
+    @if (!string.IsNullOrEmpty(_success))
+    {
+        <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 text-sm rounded-md">@_success</div>
+    }
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else if (_stages.Count == 0)
+    {
+        <div class="bg-white border border-slate-200 rounded-lg p-12 text-center">
+            <p class="text-slate-600 font-medium">No pipeline stages</p>
+            <p class="text-slate-400 text-sm mt-1">Add your first stage to get started.</p>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="w-16 px-4 py-3"></th>
+                        <th class="text-left font-medium text-slate-600 px-4 py-3">Stage</th>
+                        <th class="text-left font-medium text-slate-600 px-4 py-3">Probability</th>
+                        <th class="text-left font-medium text-slate-600 px-4 py-3">Color</th>
+                        <th class="text-right font-medium text-slate-600 px-4 py-3">Deals</th>
+                        <th class="text-right font-medium text-slate-600 px-4 py-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @for (int i = 0; i < _stages.Count; i++)
+                    {
+                        var stage = _stages[i];
+                        var captured = stage;
+                        var index = i;
+                        <tr class="hover:bg-slate-50">
+                            <td class="px-4 py-3">
+                                <div class="flex flex-col gap-0.5">
+                                    <button class="text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                                            disabled="@(index == 0)"
+                                            title="Move up"
+                                            @onclick="() => MoveStage(captured.Id, -1)">
+                                        ▲
+                                    </button>
+                                    <button class="text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                                            disabled="@(index == _stages.Count - 1)"
+                                            title="Move down"
+                                            @onclick="() => MoveStage(captured.Id, 1)">
+                                        ▼
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 font-medium text-slate-900">@captured.Name</td>
+                            <td class="px-4 py-3 text-slate-600">@captured.Probability%</td>
+                            <td class="px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-5 h-5 rounded-full border border-slate-200" style="background-color: @(captured.Color ?? "#6b7280");"></span>
+                                    <span class="text-xs text-slate-500 font-mono">@(captured.Color ?? "#6b7280")</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-right text-slate-600">@captured.DealCount</td>
+                            <td class="px-4 py-3 text-right">
+                                <button class="text-xs text-blue-600 hover:text-blue-700 mr-3"
+                                        @onclick="() => OpenEdit(captured)">
+                                    Edit
+                                </button>
+                                <button class="text-xs text-red-600 hover:text-red-700 disabled:text-slate-300"
+                                        disabled="@(captured.DealCount > 0)"
+                                        title="@(captured.DealCount > 0 ? "Cannot delete — stage is in use" : "Delete")"
+                                        @onclick="() => OpenDeleteConfirm(captured)">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<!-- Create/Edit modal -->
+@if (_showForm)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50" @onclick="CloseForm"></div>
+
+        <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6 z-10">
+            <h3 class="text-lg font-semibold text-slate-900 mb-4">
+                @(_editingId.HasValue ? "Edit Stage" : "Add Stage")
+            </h3>
+
+            @if (!string.IsNullOrEmpty(_formError))
+            {
+                <div class="mb-3 p-2 bg-red-50 border border-red-200 text-red-800 text-xs rounded">@_formError</div>
+            }
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Name *</label>
+                    <input type="text"
+                           class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                           @bind="_formName" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Probability (%)</label>
+                    <input type="number" min="0" max="100"
+                           class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                           @bind="_formProbability" />
+                    <p class="text-xs text-slate-400 mt-1">How likely deals here are to close.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1">Color</label>
+                    <div class="flex gap-2">
+                        <input type="color"
+                               class="h-10 w-16 rounded border border-slate-300 cursor-pointer"
+                               @bind="_formColor" />
+                        <input type="text"
+                               class="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm font-mono"
+                               @bind="_formColor" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button class="px-4 py-2 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                        @onclick="CloseForm">
+                    Cancel
+                </button>
+                <button class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-50"
+                        disabled="@_formSaving"
+                        @onclick="SaveForm">
+                    @(_formSaving ? "Saving…" : (_editingId.HasValue ? "Save" : "Add Stage"))
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete confirm -->
+<ConfirmDialog IsOpen="_showDeleteConfirm"
+               Title="Delete stage?"
+               Message="@($"Delete the stage '{_deleteTarget?.Name}'? This cannot be undone.")"
+               ConfirmLabel="Delete"
+               Busy="_deleting"
+               OnConfirm="ConfirmDelete"
+               OnCancel="() => _showDeleteConfirm = false" />
+
+@code {
+    private List<PipelineStageSettingsDto> _stages = new();
+    private bool _loading = true;
+    private string? _error;
+    private string? _success;
+
+    // Form state
+    private bool _showForm;
+    private bool _formSaving;
+    private string? _formError;
+    private Guid? _editingId;
+    private string _formName = string.Empty;
+    private int _formProbability = 50;
+    private string _formColor = "#3b82f6";
+
+    // Delete state
+    private bool _showDeleteConfirm;
+    private bool _deleting;
+    private PipelineStageSettingsDto? _deleteTarget;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _stages = await SettingsService.GetPipelineStagesAsync();
+        _loading = false;
+    }
+
+    private void OpenCreate()
+    {
+        _editingId = null;
+        _formName = string.Empty;
+        _formProbability = 50;
+        _formColor = "#3b82f6";
+        _formError = null;
+        _showForm = true;
+    }
+
+    private void OpenEdit(PipelineStageSettingsDto stage)
+    {
+        _editingId = stage.Id;
+        _formName = stage.Name;
+        _formProbability = stage.Probability;
+        _formColor = stage.Color ?? "#3b82f6";
+        _formError = null;
+        _showForm = true;
+    }
+
+    private void CloseForm()
+    {
+        if (_formSaving) return;
+        _showForm = false;
+    }
+
+    private async Task SaveForm()
+    {
+        _formSaving = true;
+        _formError = null;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            if (_editingId.HasValue)
+            {
+                var result = await SettingsService.UpdatePipelineStageAsync(new UpdatePipelineStageDto
+                {
+                    Id = _editingId.Value,
+                    Name = _formName,
+                    Probability = _formProbability,
+                    Color = _formColor
+                });
+
+                if (result.IsSuccess)
+                {
+                    _success = "Stage updated.";
+                    _showForm = false;
+                    await LoadAsync();
+                }
+                else
+                {
+                    _formError = result.Error;
+                }
+            }
+            else
+            {
+                var result = await SettingsService.CreatePipelineStageAsync(new CreatePipelineStageDto
+                {
+                    Name = _formName,
+                    Probability = _formProbability,
+                    Color = _formColor,
+                    DisplayOrder = 0
+                });
+
+                if (result.IsSuccess)
+                {
+                    _success = "Stage created.";
+                    _showForm = false;
+                    await LoadAsync();
+                }
+                else
+                {
+                    _formError = result.Error;
+                }
+            }
+        }
+        finally
+        {
+            _formSaving = false;
+        }
+    }
+
+    private void OpenDeleteConfirm(PipelineStageSettingsDto stage)
+    {
+        _deleteTarget = stage;
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_deleteTarget is null) return;
+
+        _deleting = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            var result = await SettingsService.DeletePipelineStageAsync(_deleteTarget.Id);
+            if (result.IsSuccess)
+            {
+                _success = "Stage deleted.";
+                _showDeleteConfirm = false;
+                await LoadAsync();
+            }
+            else
+            {
+                _error = result.Error;
+                _showDeleteConfirm = false;
+            }
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+
+    private async Task MoveStage(Guid id, int direction)
+    {
+        _error = null;
+        _success = null;
+
+        var result = await SettingsService.MovePipelineStageAsync(id, direction);
+        if (result.IsSuccess)
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            _error = result.Error;
+        }
+    }
+}

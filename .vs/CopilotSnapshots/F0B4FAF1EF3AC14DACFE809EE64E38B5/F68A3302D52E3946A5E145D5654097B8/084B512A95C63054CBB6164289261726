@@ -1,0 +1,367 @@
+﻿@page "/reports"
+
+@using OrbitCRM.Application.Reports.Interfaces
+@inject IReportService ReportService
+@inject IJSRuntime JS
+
+<PageTitle>Reports · OrbitCRM</PageTitle>
+
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Reports</h1>
+        <p class="text-sm text-slate-500 mt-1">Analyze your business performance across time.</p>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+        <select class="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @bind="_preset"
+                @bind:after="OnPresetChanged">
+            <option value="this-month">This Month</option>
+            <option value="last-30">Last 30 Days</option>
+            <option value="last-90">Last 90 Days</option>
+            <option value="this-year">This Year</option>
+            <option value="last-12-months">Last 12 Months</option>
+            <option value="all-time">All Time</option>
+        </select>
+
+        <button class="px-3 py-2 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                @onclick="ExportCurrentTabAsync">
+            Export CSV
+        </button>
+    </div>
+</div>
+
+<!-- Tabs -->
+<div class="flex border-b border-slate-200 mb-6 overflow-x-auto">
+    @foreach (var tab in _tabs)
+    {
+        var captured = tab;
+        <button class="px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors @(_activeTab == captured.Key ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-800")"
+                @onclick="() => SetTab(captured.Key)">
+            @captured.Value
+        </button>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="text-slate-500 text-sm py-8">Loading report…</div>
+}
+else
+{
+    @if (_activeTab == "sales")
+    {
+        <ReportCard Title="Sales by Month"
+                    Subtitle="Won revenue per month (based on expected close date)">
+            <BarChart Items="_revenueChart" Color="#22c55e" ValueFormat="C0" />
+        </ReportCard>
+    }
+    else if (_activeTab == "customers")
+    {
+        <ReportCard Title="Customer Growth"
+                    Subtitle="New customers acquired per month">
+            <BarChart Items="_customerChart" Color="#3b82f6" ValueFormat="N0" />
+        </ReportCard>
+    }
+    else if (_activeTab == "leads-by-source")
+    {
+        <ReportCard Title="Leads by Source"
+                    Subtitle="Where your leads come from">
+            @if (_sources.Count == 0)
+            {
+                <p class="text-sm text-slate-400 italic py-4">No leads in this range.</p>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead class="border-b border-slate-200">
+                        <tr>
+                            <th class="text-left py-2 text-slate-500 font-medium">Source</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Leads</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Est. Value</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var s in _sources)
+                        {
+                            <tr>
+                                <td class="py-2 text-slate-800 font-medium">@s.Source</td>
+                                <td class="py-2 text-right text-slate-700">@s.Count</td>
+                                <td class="py-2 text-right text-slate-700">@s.TotalValue.ToString("C0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </ReportCard>
+    }
+    else if (_activeTab == "lead-funnel")
+    {
+        <ReportCard Title="Lead Conversion Funnel"
+                    Subtitle="How leads progress through the sales process">
+            @if (_funnel.Count == 0)
+            {
+                <p class="text-sm text-slate-400 italic py-4">No leads in this range.</p>
+            }
+            else
+            {
+                <div class="space-y-3">
+                    @foreach (var f in _funnel)
+                    {
+                        <div>
+                            <div class="flex justify-between items-baseline mb-1">
+                                <span class="text-sm font-medium text-slate-700">@f.Stage</span>
+                                <span class="text-xs text-slate-500">
+                                    @f.Count lead@(f.Count == 1 ? "" : "s") · @f.Percentage%
+                                </span>
+                            </div>
+                            <div class="h-6 bg-slate-100 rounded-md overflow-hidden">
+                                <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-700"
+                                     style="width: @(Math.Max(f.Percentage, 2))%;">
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </ReportCard>
+    }
+    else if (_activeTab == "deals-by-stage")
+    {
+        <ReportCard Title="Deals by Pipeline Stage"
+                    Subtitle="Current deals and values across each stage">
+            @if (_stageBreakdown.Count == 0)
+            {
+                <p class="text-sm text-slate-400 italic py-4">No deals in this range.</p>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead class="border-b border-slate-200">
+                        <tr>
+                            <th class="text-left py-2 text-slate-500 font-medium">Stage</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Deals</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Total Value</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Won</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Lost</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var s in _stageBreakdown)
+                        {
+                            <tr>
+                                <td class="py-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full" style="background-color: @(s.Color ?? "#6b7280");"></span>
+                                        <span class="font-medium text-slate-800">@s.StageName</span>
+                                    </div>
+                                </td>
+                                <td class="py-2 text-right text-slate-700">@s.DealCount</td>
+                                <td class="py-2 text-right text-slate-700 font-medium">@s.TotalValue.ToString("C0")</td>
+                                <td class="py-2 text-right text-green-700">@s.WonValue.ToString("C0")</td>
+                                <td class="py-2 text-right text-red-700">@s.LostValue.ToString("C0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </ReportCard>
+    }
+    else if (_activeTab == "salesperson")
+    {
+        <ReportCard Title="Revenue by Salesperson"
+                    Subtitle="Performance breakdown per user (unassigned deals grouped)">
+            @if (_userPerformance.Count == 0)
+            {
+                <p class="text-sm text-slate-400 italic py-4">No deals in this range.</p>
+            }
+            else
+            {
+                <table class="w-full text-sm">
+                    <thead class="border-b border-slate-200">
+                        <tr>
+                            <th class="text-left py-2 text-slate-500 font-medium">User</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Total Deals</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Won</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Lost</th>
+                            <th class="text-right py-2 text-slate-500 font-medium">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach (var u in _userPerformance)
+                        {
+                            <tr>
+                                <td class="py-2 text-slate-800 font-medium">@u.UserName</td>
+                                <td class="py-2 text-right text-slate-700">@u.TotalDeals</td>
+                                <td class="py-2 text-right text-green-700">@u.DealsWon</td>
+                                <td class="py-2 text-right text-red-700">@u.DealsLost</td>
+                                <td class="py-2 text-right font-semibold text-slate-900">@u.Revenue.ToString("C0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </ReportCard>
+    }
+}
+
+@code {
+    private string _preset = "last-12-months";
+    private string _activeTab = "sales";
+    private bool _loading = true;
+
+    private DateRangeDto _range = new();
+
+    private readonly Dictionary<string, string> _tabs = new()
+    {
+        { "sales", "Sales by Month" },
+        { "customers", "Customer Growth" },
+        { "leads-by-source", "Leads by Source" },
+        { "lead-funnel", "Lead Funnel" },
+        { "deals-by-stage", "Deals by Stage" },
+        { "salesperson", "By Salesperson" }
+    };
+
+    private List<BarChart.ChartItem> _revenueChart = new();
+    private List<BarChart.ChartItem> _customerChart = new();
+    private List<SourceBreakdownDto> _sources = new();
+    private List<FunnelStageDto> _funnel = new();
+    private List<StageBreakdownDto> _stageBreakdown = new();
+    private List<UserPerformanceDto> _userPerformance = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ComputeRange();
+        await LoadAsync();
+    }
+
+    private void ComputeRange()
+    {
+        var now = DateTime.UtcNow.Date;
+        DateTime start = _preset switch
+        {
+            "this-month" => new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc),
+            "last-30" => now.AddDays(-30),
+            "last-90" => now.AddDays(-90),
+            "this-year" => new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            "last-12-months" => new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(-11),
+            "all-time" => new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            _ => now.AddDays(-90)
+        };
+
+        _range = new DateRangeDto { Start = start, End = now.AddDays(1) };
+    }
+
+    private async Task OnPresetChanged()
+    {
+        ComputeRange();
+        await LoadAsync();
+    }
+
+    private async Task SetTab(string key)
+    {
+        _activeTab = key;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+
+        try
+        {
+            // Always load what the current tab needs
+            switch (_activeTab)
+            {
+                case "sales":
+                    var rev = await ReportService.GetWonRevenueByMonthAsync(_range);
+                    _revenueChart = rev.Select(m => new BarChart.ChartItem
+                    {
+                        Label = m.Label,
+                        Value = m.Value
+                    }).ToList();
+                    break;
+
+                case "customers":
+                    var cust = await ReportService.GetCustomerGrowthByMonthAsync(_range);
+                    _customerChart = cust.Select(m => new BarChart.ChartItem
+                    {
+                        Label = m.Label,
+                        Value = m.Count
+                    }).ToList();
+                    break;
+
+                case "leads-by-source":
+                    _sources = await ReportService.GetLeadsBySourceAsync(_range);
+                    break;
+
+                case "lead-funnel":
+                    _funnel = await ReportService.GetLeadFunnelAsync(_range);
+                    break;
+
+                case "deals-by-stage":
+                    _stageBreakdown = await ReportService.GetDealsByPipelineStageAsync(_range);
+                    break;
+
+                case "salesperson":
+                    _userPerformance = await ReportService.GetRevenueBySalespersonAsync(_range);
+                    break;
+            }
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ExportCurrentTabAsync()
+    {
+        var csv = BuildCsv();
+        if (string.IsNullOrEmpty(csv)) return;
+
+        var filename = $"{_activeTab}-{DateTime.Now:yyyy-MM-dd}.csv";
+        await JS.InvokeVoidAsync("downloadFile", filename, csv);
+    }
+
+    private string BuildCsv()
+    {
+        var sb = new System.Text.StringBuilder();
+
+        switch (_activeTab)
+        {
+            case "sales":
+                sb.AppendLine("Month,Revenue");
+                foreach (var m in _revenueChart) sb.AppendLine($"\"{m.Label}\",{m.Value}");
+                break;
+
+            case "customers":
+                sb.AppendLine("Month,New Customers");
+                foreach (var m in _customerChart) sb.AppendLine($"\"{m.Label}\",{m.Value}");
+                break;
+
+            case "leads-by-source":
+                sb.AppendLine("Source,Count,Estimated Value");
+                foreach (var s in _sources) sb.AppendLine($"\"{s.Source}\",{s.Count},{s.TotalValue}");
+                break;
+
+            case "lead-funnel":
+                sb.AppendLine("Stage,Count,Percentage");
+                foreach (var f in _funnel) sb.AppendLine($"\"{f.Stage}\",{f.Count},{f.Percentage}");
+                break;
+
+            case "deals-by-stage":
+                sb.AppendLine("Stage,Deals,Total Value,Won Value,Lost Value");
+                foreach (var s in _stageBreakdown)
+                    sb.AppendLine($"\"{s.StageName}\",{s.DealCount},{s.TotalValue},{s.WonValue},{s.LostValue}");
+                break;
+
+            case "salesperson":
+                sb.AppendLine("User,Total Deals,Won,Lost,Revenue");
+                foreach (var u in _userPerformance)
+                    sb.AppendLine($"\"{u.UserName}\",{u.TotalDeals},{u.DealsWon},{u.DealsLost},{u.Revenue}");
+                break;
+        }
+
+        return sb.ToString();
+    }
+}

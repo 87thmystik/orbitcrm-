@@ -1,0 +1,287 @@
+﻿@page "/leads/new"
+@page "/leads/{Id:guid}/edit"
+@rendermode InteractiveServer
+
+@using OrbitCRM.Application.Leads.DTOs
+@using OrbitCRM.Application.Leads.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject ILeadService LeadService
+@inject NavigationManager Nav
+
+<PageTitle>@_pageTitle · OrbitCRM</PageTitle>
+
+<div class="max-w-2xl">
+    <button class="text-sm text-slate-500 hover:text-slate-700 mb-4"
+            @onclick="BackToList">
+        ← Back to Leads
+    </button>
+
+    <h1 class="text-2xl font-semibold text-slate-900 mb-6">@_pageTitle</h1>
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else
+    {
+        <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="lead-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-sm text-red-600 mb-4" />
+
+            <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField Label="First Name" Required>
+                        <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.FirstName" />
+                        <ValidationMessage For="() => _model.FirstName" class="text-xs text-red-600 mt-1" />
+                    </FormField>
+
+                    <FormField Label="Last Name" Required>
+                        <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.LastName" />
+                        <ValidationMessage For="() => _model.LastName" class="text-xs text-red-600 mt-1" />
+                    </FormField>
+                </div>
+
+                <FormField Label="Email" Required>
+                    <InputText type="email"
+                               class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               @bind-Value="_model.Email" />
+                    <ValidationMessage For="() => _model.Email" class="text-xs text-red-600 mt-1" />
+                </FormField>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField Label="Phone">
+                        <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.Phone" />
+                    </FormField>
+
+                    <FormField Label="Company">
+                        <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.CompanyName" />
+                    </FormField>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField Label="Source">
+                        <InputText placeholder="Website, Referral, Cold call…"
+                                   class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.Source" />
+                    </FormField>
+
+                    <FormField Label="Estimated Value">
+                        <InputNumber class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_model.EstimatedValue" />
+                    </FormField>
+                </div>
+
+                @if (IsEdit)
+                {
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField Label="Status">
+                            <InputSelect class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                         @bind-Value="_model.Status">
+                                @foreach (var s in Enum.GetValues<LeadStatus>())
+                                {
+                                    <option value="@s">@s</option>
+                                }
+                            </InputSelect>
+                        </FormField>
+
+                        <FormField Label="Priority">
+                            <InputSelect class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                         @bind-Value="_model.Priority">
+                                @foreach (var p in Enum.GetValues<Priority>())
+                                {
+                                    <option value="@p">@p</option>
+                                }
+                            </InputSelect>
+                        </FormField>
+                    </div>
+                }
+                else
+                {
+                    <FormField Label="Priority">
+                        <InputSelect class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_model.Priority">
+                            @foreach (var p in Enum.GetValues<Priority>())
+                            {
+                                <option value="@p">@p</option>
+                            }
+                        </InputSelect>
+                    </FormField>
+                }
+
+                <FormField Label="Notes">
+                    <InputTextArea rows="3"
+                                   class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.Notes" />
+                </FormField>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="mt-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+                    @_errorMessage
+                </div>
+            }
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button"
+                        class="px-4 py-2 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                        @onclick="BackToList">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-60"
+                        disabled="@_saving">
+                    @(_saving ? "Saving…" : "Save")
+                </button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private LeadFormModel _model = new();
+    private bool _loading = true;
+    private bool _saving;
+    private string? _errorMessage;
+
+    private bool IsEdit => Id is not null && Id != Guid.Empty;
+    private string _pageTitle => IsEdit ? "Edit Lead" : "New Lead";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+
+        if (IsEdit)
+        {
+            var lead = await LeadService.GetByIdAsync(Id!.Value);
+            if (lead is null)
+            {
+                Nav.NavigateTo("/leads");
+                return;
+            }
+
+            _model = new LeadFormModel
+            {
+                FirstName = lead.FirstName,
+                LastName = lead.LastName,
+                Email = lead.Email,
+                Phone = lead.Phone,
+                CompanyName = lead.CompanyName,
+                Source = lead.Source,
+                Status = lead.Status,
+                Priority = lead.Priority,
+                EstimatedValue = lead.EstimatedValue,
+                Notes = lead.Notes
+            };
+        }
+        else
+        {
+            _model = new LeadFormModel();
+        }
+
+        _loading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        _saving = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (IsEdit)
+            {
+                var dto = new UpdateLeadDto
+                {
+                    Id = Id!.Value,
+                    FirstName = _model.FirstName,
+                    LastName = _model.LastName,
+                    Email = _model.Email,
+                    Phone = _model.Phone,
+                    CompanyName = _model.CompanyName,
+                    Source = _model.Source,
+                    Status = _model.Status,
+                    Priority = _model.Priority,
+                    EstimatedValue = _model.EstimatedValue,
+                    Notes = _model.Notes
+                };
+
+                var result = await LeadService.UpdateAsync(dto);
+                if (result.IsSuccess)
+                    Nav.NavigateTo($"/leads/{Id}");
+                else
+                    _errorMessage = result.Error;
+            }
+            else
+            {
+                var dto = new CreateLeadDto
+                {
+                    FirstName = _model.FirstName,
+                    LastName = _model.LastName,
+                    Email = _model.Email,
+                    Phone = _model.Phone,
+                    CompanyName = _model.CompanyName,
+                    Source = _model.Source,
+                    Priority = _model.Priority,
+                    EstimatedValue = _model.EstimatedValue,
+                    Notes = _model.Notes
+                };
+
+                var result = await LeadService.CreateAsync(dto);
+                if (result.IsSuccess)
+                    Nav.NavigateTo($"/leads/{result.Value}");
+                else
+                    _errorMessage = result.Error;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void BackToList() => Nav.NavigateTo("/leads");
+
+    public class LeadFormModel
+    {
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(100)]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Last name is required.")]
+        [StringLength(100)]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        [StringLength(255)]
+        public string Email { get; set; } = string.Empty;
+
+        [StringLength(50)]
+        public string? Phone { get; set; }
+
+        [StringLength(200)]
+        public string? CompanyName { get; set; }
+
+        [StringLength(100)]
+        public string? Source { get; set; }
+
+        public LeadStatus Status { get; set; } = LeadStatus.New;
+
+        public Priority Priority { get; set; } = Priority.Medium;
+
+        [Range(0, 999999999, ErrorMessage = "Value must be zero or positive.")]
+        public decimal EstimatedValue { get; set; }
+
+        [StringLength(4000)]
+        public string? Notes { get; set; }
+    }
+}

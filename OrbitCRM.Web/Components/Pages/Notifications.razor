@@ -1,0 +1,94 @@
+﻿@page "/notifications"
+@rendermode InteractiveServer
+@using OrbitCRM.Application.Notifications.DTOs
+@using OrbitCRM.Application.Notifications.Interfaces
+@inject INotificationService NotificationService
+@inject NavigationManager Nav
+
+<PageTitle>Notifications · OrbitCRM</PageTitle>
+
+<div class="max-w-3xl">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold text-slate-900">Notifications</h1>
+            <p class="text-sm text-slate-500 mt-1">Your personal activity feed.</p>
+        </div>
+
+        <button class="px-3 py-1.5 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                @onclick="MarkAllAsRead">
+            Mark all as read
+        </button>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-slate-500 text-sm py-8">Loading…</div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="bg-white border border-slate-200 rounded-lg p-12 text-center">
+            <p class="text-slate-600 font-medium">No notifications</p>
+            <p class="text-slate-400 text-sm mt-1">When something happens, you'll see it here.</p>
+        </div>
+    }
+    else
+    {
+        <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+            @foreach (var n in _items)
+            {
+                var captured = n;
+                <div class="border-b border-slate-100 last:border-0 px-4 py-3 hover:bg-slate-50 cursor-pointer @(!captured.IsRead ? "bg-blue-50/30" : "")"
+                     @onclick="() => HandleClick(captured)">
+                    <div class="flex items-start gap-3">
+                        <NotificationIcon Kind="captured.Kind" />
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-medium @(!captured.IsRead ? "text-slate-900 font-semibold" : "text-slate-700")">
+                                @captured.Title
+                            </div>
+                            @if (!string.IsNullOrEmpty(captured.Message))
+                            {
+                                <div class="text-sm text-slate-500 mt-0.5">@captured.Message</div>
+                            }
+                            <div class="text-xs text-slate-400 mt-1">
+                                @captured.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                            </div>
+                        </div>
+                        @if (!captured.IsRead)
+                        {
+                            <span class="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0"></span>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private List<NotificationDto> _items = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _items = await NotificationService.GetAllAsync(1, 50, null);
+        _loading = false;
+    }
+
+    private async Task HandleClick(NotificationDto n)
+    {
+        if (!n.IsRead) await NotificationService.MarkAsReadAsync(n.Id);
+        if (!string.IsNullOrEmpty(n.Url)) Nav.NavigateTo(n.Url);
+        else
+        {
+            _items = await NotificationService.GetAllAsync(1, 50, null);
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        await NotificationService.MarkAllAsReadAsync();
+        _items = await NotificationService.GetAllAsync(1, 50, null);
+        StateHasChanged();
+    }
+}

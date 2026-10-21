@@ -1,0 +1,241 @@
+﻿@page "/tasks"
+@rendermode InteractiveServer
+@using OrbitCRM.Application.Common.Models
+@using OrbitCRM.Application.Tasks.DTOs
+@using OrbitCRM.Application.Tasks.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject ITaskService TaskService
+@inject NavigationManager Nav
+
+<PageTitle>Tasks · OrbitCRM</PageTitle>
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Tasks</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            @if (_result is null)
+            {
+                <span>Loading…</span>
+            }
+            else
+            {
+                <span>@_result.TotalCount task@(_result.TotalCount == 1 ? "" : "s")</span>
+            }
+        </p>
+    </div>
+
+    <button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-md shadow-sm transition-colors"
+            @onclick="GoToNewTask">
+        + New Task
+    </button>
+</div>
+
+<div class="flex flex-wrap gap-3 mb-4 items-center">
+    <input type="text"
+           placeholder="Search tasks…"
+           class="flex-1 min-w-[240px] px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+           value="@_search"
+           @oninput="OnSearchInput" />
+
+    <div class="flex border border-slate-300 rounded-md overflow-hidden">
+        <button class="px-3 py-2 text-sm @(_filter == TaskFilter.All ? "bg-blue-600 text-white" : "hover:bg-slate-50")"
+                @onclick="() => SetFilter(TaskFilter.All)">All</button>
+        <button class="px-3 py-2 text-sm border-l border-slate-300 @(_filter == TaskFilter.Open ? "bg-blue-600 text-white" : "hover:bg-slate-50")"
+                @onclick="() => SetFilter(TaskFilter.Open)">Open</button>
+        <button class="px-3 py-2 text-sm border-l border-slate-300 @(_filter == TaskFilter.Overdue ? "bg-blue-600 text-white" : "hover:bg-slate-50")"
+                @onclick="() => SetFilter(TaskFilter.Overdue)">Overdue</button>
+        <button class="px-3 py-2 text-sm border-l border-slate-300 @(_filter == TaskFilter.Completed ? "bg-blue-600 text-white" : "hover:bg-slate-50")"
+                @onclick="() => SetFilter(TaskFilter.Completed)">Completed</button>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="text-slate-500 text-sm py-8">Loading tasks…</div>
+}
+else if (_result is null || _result.Items.Count == 0)
+{
+    <div class="bg-white border border-slate-200 rounded-lg p-12 text-center">
+        <p class="text-slate-600 font-medium">No tasks found</p>
+        <p class="text-slate-400 text-sm mt-1">
+            @if (string.IsNullOrWhiteSpace(_search) && _filter == TaskFilter.All)
+            {
+                <span>Add your first task to get started.</span>
+            }
+            else
+            {
+                <span>Try a different search or filter.</span>
+            }
+        </p>
+    </div>
+}
+else
+{
+    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+                <tr>
+                    <th class="w-10 px-4 py-3"></th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Task</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Related</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Priority</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Status</th>
+                    <th class="text-left font-medium text-slate-600 px-4 py-3">Due</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @foreach (var task in _result.Items)
+                {
+                    var captured = task;
+                    <tr class="hover:bg-slate-50 cursor-pointer transition-colors @(captured.Status == TaskItemStatus.Completed ? "opacity-60" : "")"
+                        @onclick="() => GoToTask(captured.Id)">
+                        <td class="px-4 py-3" @onclick:stopPropagation="true">
+                            <input type="checkbox"
+                                   checked="@(captured.Status == TaskItemStatus.Completed)"
+                                   @onchange="() => ToggleComplete(captured)" />
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-slate-900 @(captured.Status == TaskItemStatus.Completed ? "line-through" : "")">
+                                @captured.Title
+                            </div>
+                            @if (!string.IsNullOrEmpty(captured.Description))
+                            {
+                                <div class="text-xs text-slate-500 truncate max-w-md">@captured.Description</div>
+                            }
+                        </td>
+                        <td class="px-4 py-3 text-slate-600">
+                            @if (!string.IsNullOrEmpty(captured.RelatedName))
+                            {
+                                <span>@captured.RelatedName</span>
+                            }
+                            else
+                            {
+                                <span class="text-slate-400">—</span>
+                            }
+                        </td>
+                        <td class="px-4 py-3"><PriorityBadge Priority="captured.Priority" /></td>
+                        <td class="px-4 py-3"><TaskStatusBadge Status="captured.Status" /></td>
+                        <td class="px-4 py-3">
+                            @if (captured.DueDate.HasValue)
+                            {
+                                @if (captured.IsOverdue)
+                                {
+                                    <span class="text-red-600 font-medium">
+                                        @captured.DueDate.Value.ToLocalTime().ToString("MMM d")
+                                    </span>
+                                }
+                                else if (captured.IsDueToday)
+                                {
+                                    <span class="text-amber-600 font-medium">Today</span>
+                                }
+                                else
+                                {
+                                    <span class="text-slate-600">@captured.DueDate.Value.ToLocalTime().ToString("MMM d")</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-slate-400">—</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_result.TotalPages > 1)
+    {
+        <div class="flex items-center justify-between mt-4 text-sm">
+            <div class="text-slate-500">Page @_result.Page of @_result.TotalPages</div>
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+                        disabled="@(!_result.HasPrevious)"
+                        @onclick="PreviousPage">← Previous</button>
+                <button class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+                        disabled="@(!_result.HasNext)"
+                        @onclick="NextPage">Next →</button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private PagedResult<TaskDto>? _result;
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private string _filter = TaskFilter.All;
+    private int _page = 1;
+    private const int PageSize = 20;
+    private CancellationTokenSource? _searchCts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _result = await TaskService.GetAllAsync(
+                page: _page,
+                pageSize: PageSize,
+                search: string.IsNullOrWhiteSpace(_search) ? null : _search,
+                filter: _filter);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _page = 1;
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested)
+                await LoadAsync();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task SetFilter(string filter)
+    {
+        _filter = filter;
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task ToggleComplete(TaskDto task)
+    {
+        if (task.Status == TaskItemStatus.Completed)
+            await TaskService.ReopenAsync(task.Id);
+        else
+            await TaskService.CompleteAsync(task.Id);
+
+        await LoadAsync();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (_result?.HasPrevious == true) { _page--; await LoadAsync(); }
+    }
+
+    private async Task NextPage()
+    {
+        if (_result?.HasNext == true) { _page++; await LoadAsync(); }
+    }
+
+    private void GoToNewTask() => Nav.NavigateTo("/tasks/new");
+    private void GoToTask(Guid id) => Nav.NavigateTo("/tasks/" + id.ToString());
+}

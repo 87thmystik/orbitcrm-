@@ -1,0 +1,263 @@
+﻿@page "/deals/new"
+@page "/deals/{Id:guid}/edit"
+
+@using Microsoft.EntityFrameworkCore
+@using OrbitCRM.Application.Customers.Interfaces
+@using OrbitCRM.Application.Deals.DTOs
+@using OrbitCRM.Application.Deals.Interfaces
+@using OrbitCRM.Application.Leads.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject IDealService DealService
+@inject ICustomerService CustomerService
+@inject ILeadService LeadService
+@inject NavigationManager Nav
+
+<PageTitle>@_pageTitle · OrbitCRM</PageTitle>
+
+<div class="max-w-2xl">
+    <button class="text-sm text-slate-500 hover:text-slate-700 mb-4"
+            @onclick="BackToList">
+        ← Back to Deals
+    </button>
+
+    <h1 class="text-2xl font-semibold text-slate-900 mb-6">@_pageTitle</h1>
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else
+    {
+        <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="deal-form">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-sm text-red-600 mb-4" />
+
+            <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+
+                <FormField Label="Deal Name" Required>
+                    <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               @bind-Value="_model.Name" />
+                    <ValidationMessage For="() => _model.Name" class="text-xs text-red-600 mt-1" />
+                </FormField>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField Label="Value" Required>
+                        <InputNumber class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_model.Value" />
+                        <ValidationMessage For="() => _model.Value" class="text-xs text-red-600 mt-1" />
+                    </FormField>
+
+                    <FormField Label="Expected Close Date">
+                        <InputDate class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.ExpectedCloseDate" />
+                    </FormField>
+                </div>
+
+                <FormField Label="Pipeline Stage" Required>
+                    <InputSelect class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                 @bind-Value="_model.PipelineStageId">
+                        @foreach (var s in _stages)
+                        {
+                            <option value="@s.Id">@s.Name (@s.Probability%)</option>
+                        }
+                    </InputSelect>
+                </FormField>
+
+                @if (IsEdit)
+                {
+                    <FormField Label="Status">
+                        <InputSelect class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_model.Status">
+                            @foreach (var s in Enum.GetValues<DealStatus>())
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        </InputSelect>
+                    </FormField>
+                }
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField Label="Linked Customer">
+                        <InputSelect class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_model.CustomerId">
+                            <option value="">— None —</option>
+                            @foreach (var c in _customers)
+                            {
+                                <option value="@c.Id">@c.FullName</option>
+                            }
+                        </InputSelect>
+                    </FormField>
+
+                    <FormField Label="Linked Lead">
+                        <InputSelect class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_model.LeadId">
+                            <option value="">— None —</option>
+                            @foreach (var l in _leads)
+                            {
+                                <option value="@l.Id">@l.FullName</option>
+                            }
+                        </InputSelect>
+                    </FormField>
+                </div>
+
+                <FormField Label="Description">
+                    <InputTextArea rows="3"
+                                   class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.Description" />
+                </FormField>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_errorMessage))
+            {
+                <div class="mt-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+                    @_errorMessage
+                </div>
+            }
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button"
+                        class="px-4 py-2 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                        @onclick="BackToList">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-60"
+                        disabled="@_saving">
+                    @(_saving ? "Saving…" : "Save")
+                </button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private DealFormModel _model = new();
+    private List<PipelineStageDto> _stages = new();
+    private List<OrbitCRM.Application.Customers.DTOs.CustomerDto> _customers = new();
+    private List<OrbitCRM.Application.Leads.DTOs.LeadDto> _leads = new();
+    private bool _loading = true;
+    private bool _saving;
+    private string? _errorMessage;
+
+    private bool IsEdit => Id is not null && Id != Guid.Empty;
+    private string _pageTitle => IsEdit ? "Edit Deal" : "New Deal";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+
+        _stages = await DealService.GetPipelineStagesAsync();
+
+        var customersResult = await CustomerService.GetAllAsync(pageSize: 200);
+        _customers = customersResult.Items;
+
+        var leadsResult = await LeadService.GetAllAsync(pageSize: 200);
+        _leads = leadsResult.Items;
+
+        if (IsEdit)
+        {
+            var deal = await DealService.GetByIdAsync(Id!.Value);
+            if (deal is null) { Nav.NavigateTo("/deals"); return; }
+
+            _model = new DealFormModel
+            {
+                Name = deal.Name,
+                Description = deal.Description,
+                Value = deal.Value,
+                ExpectedCloseDate = deal.ExpectedCloseDate,
+                Status = deal.Status,
+                LeadId = deal.LeadId,
+                CustomerId = deal.CustomerId,
+                PipelineStageId = deal.PipelineStageId
+            };
+        }
+        else
+        {
+            _model = new DealFormModel
+            {
+                PipelineStageId = _stages.FirstOrDefault()?.Id ?? Guid.Empty
+            };
+        }
+
+        _loading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        _saving = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (IsEdit)
+            {
+                var dto = new UpdateDealDto
+                {
+                    Id = Id!.Value,
+                    Name = _model.Name,
+                    Description = _model.Description,
+                    Value = _model.Value,
+                    ExpectedCloseDate = _model.ExpectedCloseDate,
+                    Status = _model.Status,
+                    LeadId = _model.LeadId,
+                    CustomerId = _model.CustomerId,
+                    PipelineStageId = _model.PipelineStageId
+                };
+
+                var result = await DealService.UpdateAsync(dto);
+                if (result.IsSuccess) Nav.NavigateTo("/deals/" + Id.Value);
+                else _errorMessage = result.Error;
+            }
+            else
+            {
+                var dto = new CreateDealDto
+                {
+                    Name = _model.Name,
+                    Description = _model.Description,
+                    Value = _model.Value,
+                    ExpectedCloseDate = _model.ExpectedCloseDate,
+                    LeadId = _model.LeadId,
+                    CustomerId = _model.CustomerId,
+                    PipelineStageId = _model.PipelineStageId
+                };
+
+                var result = await DealService.CreateAsync(dto);
+                if (result.IsSuccess) Nav.NavigateTo("/deals/" + result.Value);
+                else _errorMessage = result.Error;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void BackToList() => Nav.NavigateTo("/deals");
+
+    public class DealFormModel
+    {
+        [Required(ErrorMessage = "Deal name is required.")]
+        [StringLength(200)]
+        public string Name { get; set; } = string.Empty;
+
+        [StringLength(2000)]
+        public string? Description { get; set; }
+
+        [Range(0, 999999999, ErrorMessage = "Value must be zero or positive.")]
+        public decimal Value { get; set; }
+
+        public DateTime? ExpectedCloseDate { get; set; }
+
+        public DealStatus Status { get; set; } = DealStatus.Open;
+
+        public Guid? LeadId { get; set; }
+
+        public Guid? CustomerId { get; set; }
+
+        [Required]
+        public Guid PipelineStageId { get; set; }
+    }
+}

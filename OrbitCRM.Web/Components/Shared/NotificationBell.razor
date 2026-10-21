@@ -1,0 +1,179 @@
+﻿@using OrbitCRM.Application.Notifications.DTOs
+@using OrbitCRM.Application.Notifications.Interfaces
+@inject INotificationService NotificationService
+@inject NavigationManager Nav
+@implements IDisposable
+
+<div class="relative">
+    <button class="relative p-2 rounded-md hover:bg-slate-100 transition-colors"
+            @onclick="ToggleDropdown">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        @if (_unreadCount > 0)
+        {
+            <span class="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full">
+                @(_unreadCount > 9 ? "9+" : _unreadCount.ToString())
+            </span>
+        }
+    </button>
+
+    @if (_open)
+    {
+        <div class="fixed inset-0 z-40" @onclick="CloseDropdown"></div>
+
+        <div class="absolute right-0 mt-2 w-80 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <h3 class="text-sm font-semibold text-slate-900">Notifications</h3>
+                @if (_unreadCount > 0)
+                {
+                    <button class="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                            @onclick="MarkAllAsRead">
+                        Mark all as read
+                    </button>
+                }
+            </div>
+
+            @if (_loading)
+            {
+                <div class="p-4 text-sm text-slate-500 text-center">Loading…</div>
+            }
+            else if (_recent.Count == 0)
+            {
+                <div class="p-8 text-center">
+                    <p class="text-sm text-slate-500">No notifications</p>
+                    <p class="text-xs text-slate-400 mt-1">You're all caught up.</p>
+                </div>
+            }
+            else
+            {
+                <div class="max-h-96 overflow-y-auto">
+                    @foreach (var n in _recent)
+                    {
+                        var captured = n;
+                        <div class="border-b border-slate-100 last:border-0 px-4 py-3 hover:bg-slate-50 cursor-pointer @(!captured.IsRead ? "bg-blue-50/30" : "")"
+                             @onclick="() => HandleClick(captured)">
+                            <div class="flex items-start gap-3">
+                                <div class="mt-0.5">
+                                    <NotificationIcon Kind="captured.Kind" />
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-sm text-slate-900 @(!captured.IsRead ? "font-semibold" : "font-medium")">
+                                        @captured.Title
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(captured.Message))
+                                    {
+                                        <div class="text-xs text-slate-500 mt-0.5">@captured.Message</div>
+                                    }
+                                    <div class="text-xs text-slate-400 mt-1">
+                                        @FormatRelativeTime(captured.CreatedAt)
+                                    </div>
+                                </div>
+                                @if (!captured.IsRead)
+                                {
+                                    <span class="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0"></span>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="border-t border-slate-100 px-4 py-2 text-center">
+                <a href="/notifications" class="text-xs text-blue-600 hover:text-blue-700 font-medium">View all →</a>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private bool _open = false;
+    private bool _loading = true;
+    private int _unreadCount = 0;
+    private List<NotificationDto> _recent = new();
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+
+        _timer = new Timer(async _ =>
+        {
+            try
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadAsync();
+                    StateHasChanged();
+                });
+            }
+            catch 
+            {
+                // Ignore timer errors if circuit is disconnected
+            }
+        }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _unreadCount = await NotificationService.GetUnreadCountAsync();
+            _recent = await NotificationService.GetRecentAsync(10);
+        }
+        catch (Exception)
+        {
+            // Ignore background loading errors
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ToggleDropdown()
+    {
+        _open = !_open;
+        if (_open) await LoadAsync();
+    }
+
+    private void CloseDropdown() => _open = false;
+
+    private async Task HandleClick(NotificationDto n)
+    {
+        _open = false;
+        if (!n.IsRead) await NotificationService.MarkAsReadAsync(n.Id);
+
+        if (!string.IsNullOrEmpty(n.Url))
+        {
+            Nav.NavigateTo(n.Url);
+        }
+        else
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task MarkAllAsRead()
+    {
+        await NotificationService.MarkAllAsReadAsync();
+        await LoadAsync();
+        StateHasChanged();
+    }
+
+    private static string FormatRelativeTime(DateTime utc)
+    {
+        var span = DateTime.UtcNow - utc;
+        if (span.TotalMinutes < 1) return "just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+        if (span.TotalDays < 7) return $"{(int)span.TotalDays}d ago";
+        return utc.ToLocalTime().ToString("MMM d");
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

@@ -1,0 +1,39 @@
+﻿@page "/settings"
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Settings · OrbitCRM</PageTitle>
+
+<div class="max-w-2xl">
+    <h1 class="text-2xl font-semibold text-slate-900 mb-2">Settings</h1>
+    <p class="text-sm text-slate-500 mb-6">Manage workspace settings and configuration.</p>
+
+    <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-3">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="font-medium text-slate-900">Company</div>
+                <div class="text-sm text-slate-500">Workspace identity and contact information.</div>
+            </div>
+            <NavLink class="text-sm text-blue-600" href="/settings/company">Open</NavLink>
+        </div>
+
+        <PermissionView Permission="Users.Manage">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="font-medium text-slate-900">Users</div>
+                    <div class="text-sm text-slate-500">Manage users and permissions.</div>
+                </div>
+                <NavLink class="text-sm text-blue-600" href="/settings/users">Open</NavLink>
+            </div>
+        </PermissionView>
+
+        <PermissionView Permission="Users.Manage">
+            <div class="flex items-center justify-between">
+                <div>
+                    <div class="font-medium text-slate-900">Pipeline Stages</div>
+                    <div class="text-sm text-slate-500">Customize deal pipeline stages.</div>
+                </div>
+                <NavLink class="text-sm text-blue-600" href="/settings/pipeline-stages">Open</NavLink>
+            </div>
+        </PermissionView>
+    </div>
+</div>

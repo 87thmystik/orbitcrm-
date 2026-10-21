@@ -1,0 +1,46 @@
+﻿@* Simple horizontal bar chart rendered with pure CSS *@
+
+<div class="space-y-2">
+    @if (Items.Count == 0)
+    {
+        <p class="text-sm text-slate-400 italic py-4">No data for this range.</p>
+    }
+    else
+    {
+        var max = Items.Max(i => i.Value);
+        if (max <= 0) max = 1;
+
+        foreach (var item in Items)
+        {
+            var pct = (double)(item.Value / max) * 100;
+
+            <div class="flex items-center gap-3">
+                <div class="w-28 text-xs text-slate-600 text-right truncate" title="@item.Label">@item.Label</div>
+                <div class="flex-1 h-6 bg-slate-100 rounded-md overflow-hidden relative">
+                    <div class="h-full rounded-md transition-all duration-700"
+                         style="width: @(Math.Max(pct, 2))%; background-color: @(Color ?? "#3b82f6");"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-xs font-medium text-slate-700">
+                        @FormatValue(item.Value)
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public List<ChartItem> Items { get; set; } = new();
+    [Parameter] public string? Color { get; set; }
+    [Parameter] public string ValueFormat { get; set; } = "N0"; // "C0" for currency, "N0" for integer
+
+    private string FormatValue(decimal value) =>
+        ValueFormat == "C0"
+            ? value.ToString("C0")
+            : ((int)value).ToString("N0");
+
+    public class ChartItem
+    {
+        public string Label { get; set; } = string.Empty;
+        public decimal Value { get; set; }
+    }
+}

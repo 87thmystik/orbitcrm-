@@ -1,0 +1,14 @@
+﻿@page "/settings/audit"
+@layout OrbitCRM.Web.Components.Pages.Settings.SettingsLayout
+@attribute [Authorize(Policy = "Users.Manage")]
+@using Microsoft.AspNetCore.Authorization
+
+<PageTitle>Audit Log · OrbitCRM</PageTitle>
+
+<h1 class="text-2xl font-semibold text-slate-900 mb-2">Audit Log</h1>
+<p class="text-sm text-slate-500 mb-6">Every change made in your workspace.</p>
+
+<div class="bg-slate-50 border border-slate-200 rounded-lg p-12 text-center">
+    <p class="text-slate-600 font-medium">Audit logging module is not yet wired up.</p>
+    <p class="text-slate-400 text-sm mt-1">This will be built in a future batch.</p>
+</div>

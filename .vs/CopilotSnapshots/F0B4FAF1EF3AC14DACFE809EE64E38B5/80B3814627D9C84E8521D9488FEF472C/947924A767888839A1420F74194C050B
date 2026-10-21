@@ -1,0 +1,164 @@
+﻿@page "/activities"
+@rendermode @(new InteractiveServerRenderMode())
+@using OrbitCRM.Application.Activities.DTOs
+@using OrbitCRM.Application.Activities.Interfaces
+@using OrbitCRM.Application.Common.Models
+@using OrbitCRM.Domain.Enums
+@inject IActivityService ActivityService
+@inject NavigationManager Nav
+
+<PageTitle>Activities · OrbitCRM</PageTitle>
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-slate-900">Activities</h1>
+        <p class="text-sm text-slate-500 mt-1">
+            @if (_result is null) { <span>Loading…</span> }
+            else { <span>@_result.TotalCount activit@(_result.TotalCount == 1 ? "y" : "ies")</span> }
+        </p>
+    </div>
+</div>
+
+<div class="flex flex-wrap gap-3 mb-4 items-center">
+    <input type="text"
+           placeholder="Search activities…"
+           class="flex-1 min-w-[240px] px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+           value="@_search"
+           @oninput="OnSearchInput" />
+
+    <div class="flex border border-slate-300 rounded-md overflow-hidden">
+        <button class="px-3 py-2 text-sm @(_typeFilter is null ? "bg-blue-600 text-white" : "hover:bg-slate-50")"
+                @onclick="() => SetTypeFilter(null)">All</button>
+        @foreach (var t in Enum.GetValues<ActivityType>())
+        {
+            var captured = t;
+            <button class="px-3 py-2 text-sm border-l border-slate-300 @(_typeFilter == captured ? "bg-blue-600 text-white" : "hover:bg-slate-50")"
+                    @onclick="() => SetTypeFilter(captured)">@captured</button>
+        }
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="text-slate-500 text-sm py-8">Loading activities…</div>
+}
+else if (_result is null || _result.Items.Count == 0)
+{
+    <div class="bg-white border border-slate-200 rounded-lg p-12 text-center">
+        <p class="text-slate-600 font-medium">No activities found</p>
+        <p class="text-slate-400 text-sm mt-1">Log activities from a customer, lead, or deal page.</p>
+    </div>
+}
+else
+{
+    <div class="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
+        @foreach (var activity in _result.Items)
+        {
+            <div class="p-4 flex gap-3 hover:bg-slate-50">
+                <ActivityIcon Type="activity.Type" />
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline justify-between gap-4">
+                        <div class="font-medium text-sm text-slate-900">@activity.Subject</div>
+                        <div class="text-xs text-slate-400 whitespace-nowrap">
+                            @activity.OccurredAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(activity.Description))
+                    {
+                        <div class="text-sm text-slate-600 mt-1">@activity.Description</div>
+                    }
+                    <div class="flex gap-2 mt-2 text-xs text-slate-500">
+                        <span class="px-2 py-0.5 rounded bg-slate-100">@activity.Type</span>
+                        @if (!string.IsNullOrEmpty(activity.CustomerName))
+                        {
+                            <span>Customer: @activity.CustomerName</span>
+                        }
+                        @if (!string.IsNullOrEmpty(activity.LeadName))
+                        {
+                            <span>Lead: @activity.LeadName</span>
+                        }
+                        @if (!string.IsNullOrEmpty(activity.DealName))
+                        {
+                            <span>Deal: @activity.DealName</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (_result.TotalPages > 1)
+    {
+        <div class="flex items-center justify-between mt-4 text-sm">
+            <div class="text-slate-500">Page @_result.Page of @_result.TotalPages</div>
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+                        disabled="@(!_result.HasPrevious)"
+                        @onclick="PreviousPage">← Previous</button>
+                <button class="px-3 py-1.5 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+                        disabled="@(!_result.HasNext)"
+                        @onclick="NextPage">Next →</button>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private PagedResult<ActivityDto>? _result;
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private ActivityType? _typeFilter;
+    private int _page = 1;
+    private const int PageSize = 20;
+    private CancellationTokenSource? _searchCts;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _result = await ActivityService.GetAllAsync(
+                page: _page,
+                pageSize: PageSize,
+                search: string.IsNullOrWhiteSpace(_search) ? null : _search,
+                type: _typeFilter);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? string.Empty;
+        _page = 1;
+
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        try
+        {
+            await Task.Delay(300, token);
+            if (!token.IsCancellationRequested) await LoadAsync();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task SetTypeFilter(ActivityType? type)
+    {
+        _typeFilter = type;
+        _page = 1;
+        await LoadAsync();
+    }
+
+    private async Task PreviousPage()
+    {
+        if (_result?.HasPrevious == true) { _page--; await LoadAsync(); }
+    }
+
+    private async Task NextPage()
+    {
+        if (_result?.HasNext == true) { _page++; await LoadAsync(); }
+    }
+}

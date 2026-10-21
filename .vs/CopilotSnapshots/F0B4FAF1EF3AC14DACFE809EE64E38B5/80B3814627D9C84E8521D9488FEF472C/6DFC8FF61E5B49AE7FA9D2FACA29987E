@@ -1,0 +1,160 @@
+﻿@page "/settings/company"
+@rendermode @(new InteractiveServerRenderMode())
+@attribute [Authorize(Policy = "Tenant.Manage")]
+@using Microsoft.AspNetCore.Authorization
+@using System.ComponentModel.DataAnnotations
+@using OrbitCRM.Application.Settings.DTOs
+@using OrbitCRM.Application.Settings.Interfaces
+@inject ISettingsService SettingsService
+@using Microsoft.AspNetCore.Components.Forms
+
+
+<PageTitle>Company Settings · OrbitCRM</PageTitle>
+
+<div class="max-w-2xl">
+    <h1 class="text-2xl font-semibold text-slate-900 mb-2">Company Settings</h1>
+    <p class="text-sm text-slate-500 mb-6">Manage your workspace's identity and contact info.</p>
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else if (_model is null)
+    {
+        <div class="bg-white border border-slate-200 rounded-lg p-6">
+            <p class="text-slate-500 text-sm">Company settings not available.</p>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="_model" OnValidSubmit="Save" FormName="company-settings">
+            <DataAnnotationsValidator />
+
+            <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-5">
+
+                <FormField Label="Company Name" Required>
+                    <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               @bind-Value="_model.Name" />
+                    <ValidationMessage For="() => _model.Name" class="text-xs text-red-600 mt-1" />
+                </FormField>
+
+                <FormField Label="Slug" Required>
+                    <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               @bind-Value="_model.Slug" />
+                    <p class="text-xs text-slate-400 mt-1">
+                        URL-safe identifier. Lowercase letters, numbers, and dashes only. Must be unique across all OrbitCRM workspaces.
+                    </p>
+                    <ValidationMessage For="() => _model.Slug" class="text-xs text-red-600 mt-1" />
+                </FormField>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField Label="Contact Email">
+                        <InputText type="email"
+                                   class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.Email" />
+                        <ValidationMessage For="() => _model.Email" class="text-xs text-red-600 mt-1" />
+                    </FormField>
+
+                    <FormField Label="Contact Phone">
+                        <InputText class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_model.Phone" />
+                    </FormField>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_error))
+                {
+                    <div class="p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+                        @_error
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(_success))
+                {
+                    <div class="p-3 bg-green-50 border border-green-200 text-green-800 text-sm rounded-md">
+                        @_success
+                    </div>
+                }
+            </div>
+
+            <div class="flex justify-end mt-6">
+                <button type="submit"
+                        class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md disabled:opacity-60"
+                        disabled="@_saving">
+                    @(_saving ? "Saving…" : "Save Changes")
+                </button>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private CompanySettingsModel? _model;
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+    private string? _success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var dto = await SettingsService.GetTenantSettingsAsync();
+        if (dto is not null)
+        {
+            _model = new CompanySettingsModel
+            {
+                Name = dto.Name,
+                Slug = dto.Slug,
+                Email = dto.Email,
+                Phone = dto.Phone
+            };
+        }
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        if (_model is null) return;
+
+        _saving = true;
+        _error = null;
+        _success = null;
+
+        try
+        {
+            var result = await SettingsService.UpdateTenantSettingsAsync(new UpdateTenantSettingsDto
+            {
+                Name = _model.Name,
+                Slug = _model.Slug,
+                Email = _model.Email,
+                Phone = _model.Phone
+            });
+
+            if (result.IsSuccess)
+                _success = "Settings saved.";
+            else
+                _error = result.Error;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    public class CompanySettingsModel
+    {
+        [Required(ErrorMessage = "Company name is required.")]
+        [StringLength(200)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Slug is required.")]
+        [StringLength(100)]
+        [RegularExpression(@"^[a-z0-9-]+$", ErrorMessage = "Slug can only contain lowercase letters, numbers, and dashes.")]
+        public string Slug { get; set; } = string.Empty;
+
+        [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+        [StringLength(255)]
+        public string? Email { get; set; }
+
+        [StringLength(50)]
+        public string? Phone { get; set; }
+    }
+}

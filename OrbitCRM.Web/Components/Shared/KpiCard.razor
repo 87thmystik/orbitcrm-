@@ -1,0 +1,19 @@
+﻿<div class="bg-white border border-slate-200 rounded-lg p-4">
+    <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">@Label</div>
+    <div class="mt-1 text-2xl font-semibold @_valueClass">@Value</div>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public string? Highlight { get; set; }
+
+    private string _valueClass => Highlight switch
+    {
+        "blue" => "text-blue-700",
+        "green" => "text-green-700",
+        "red" => "text-red-600",
+        "amber" => "text-amber-700",
+        _ => "text-slate-900"
+    };
+}

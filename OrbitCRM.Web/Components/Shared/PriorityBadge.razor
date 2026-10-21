@@ -1,0 +1,28 @@
+﻿@using OrbitCRM.Domain.Enums
+
+<span class="inline-flex items-center gap-1 text-xs font-medium @_textColor">
+    <span class="w-1.5 h-1.5 rounded-full @_dotColor"></span>
+    @Priority
+</span>
+
+@code {
+    [Parameter] public Priority Priority { get; set; }
+
+    private string _dotColor => Priority switch
+    {
+        Priority.Low => "bg-slate-400",
+        Priority.Medium => "bg-blue-500",
+        Priority.High => "bg-amber-500",
+        Priority.Urgent => "bg-red-500",
+        _ => "bg-slate-400"
+    };
+
+    private string _textColor => Priority switch
+    {
+        Priority.Low => "text-slate-600",
+        Priority.Medium => "text-blue-700",
+        Priority.High => "text-amber-700",
+        Priority.Urgent => "text-red-700",
+        _ => "text-slate-600"
+    };
+}

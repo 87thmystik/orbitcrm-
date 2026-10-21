@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Docs/">
+    <File Path="OrbitCRM-Project-Plan.md" />
+  </Folder>
+  <Project Path="OrbitCRM.Application/OrbitCRM.Application.csproj" />
+  <Project Path="OrbitCRM.Domain/OrbitCRM.Domain.csproj" />
+  <Project Path="OrbitCRM.Infrastructure/OrbitCRM.Infrastructure.csproj" />
+  <Project Path="OrbitCRM.UnitTests/OrbitCRM.UnitTests.csproj" />
+  <Project Path="OrbitCRM.Web/OrbitCRM.Web.csproj" />
+</Solution>

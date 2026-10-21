@@ -1,0 +1,30 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using OrbitCRM.Infrastructure.Identity
+@inject AuthenticationStateProvider AuthState
+@inject CurrentTenant CurrentTenant
+@inject ILogger<TenantInitializer> Logger
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthState.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        Logger.LogWarning("TenantInitializer: authenticated={Auth}, hasTenant={HasTenant}",
+            user.Identity?.IsAuthenticated, CurrentTenant.HasTenant);
+
+        if (user.Identity?.IsAuthenticated == true && !CurrentTenant.HasTenant)
+        {
+            var tenantIdStr = user.FindFirst(TenantClaims.TenantId)?.Value;
+            var slug = user.FindFirst(TenantClaims.TenantSlug)?.Value;
+
+            Logger.LogWarning("TenantInitializer: claim={Claim}", tenantIdStr ?? "NULL");
+
+            if (Guid.TryParse(tenantIdStr, out var tenantId))
+            {
+                CurrentTenant.SetTenant(tenantId, slug);
+                Logger.LogWarning("TenantInitializer: set tenant to {TenantId}", tenantId);
+            }
+        }
+    }
+}

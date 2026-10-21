@@ -1,0 +1,13 @@
+your-domain.com {
+    encode gzip zstd
+
+    reverse_proxy web:8080 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For {remote_host}
+    }
+
+    log {
+        output file /data/access.log
+        format json
+    }
+}

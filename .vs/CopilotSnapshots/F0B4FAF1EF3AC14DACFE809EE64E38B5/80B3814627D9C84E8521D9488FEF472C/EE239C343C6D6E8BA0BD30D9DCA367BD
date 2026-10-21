@@ -1,0 +1,138 @@
+﻿@page "/customers/{Id:guid}"
+@rendermode @(new InteractiveServerRenderMode())
+@using OrbitCRM.Application.Activities.DTOs
+@using OrbitCRM.Application.Activities.Interfaces
+@using OrbitCRM.Application.Customers.DTOs
+@using OrbitCRM.Application.Customers.Interfaces
+@inject ICustomerService CustomerService
+@inject IActivityService ActivityService
+@inject NavigationManager Nav
+
+<PageTitle>@(_customer?.FullName ?? "Customer") · OrbitCRM</PageTitle>
+
+<div class="max-w-3xl">
+    <button class="text-sm text-slate-500 hover:text-slate-700 mb-4" @onclick="BackToList">
+        ← Back to Customers
+    </button>
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else if (_customer is null)
+    {
+        <div class="bg-white border border-slate-200 rounded-lg p-6">
+            <p class="text-slate-500 text-sm">Customer not found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-semibold text-slate-900">@_customer.FullName</h1>
+                <p class="text-sm text-slate-500 mt-1">@(_customer.CompanyName ?? "—")</p>
+            </div>
+
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 text-sm border border-slate-300 rounded-md hover:bg-slate-50"
+                        @onclick="GoToEdit">Edit</button>
+                <button class="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md"
+                        @onclick="OpenDeleteConfirm">Delete</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">
+                @_errorMessage
+            </div>
+        }
+
+        <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+            <ReadOnlyRow Label="Full Name" Value="@_customer.FullName" />
+            <ReadOnlyRow Label="Email" Value="@_customer.Email" />
+            <ReadOnlyRow Label="Phone" Value="@(_customer.Phone ?? "—")" />
+            <ReadOnlyRow Label="Company" Value="@(_customer.CompanyName ?? "—")" />
+            <ReadOnlyRow Label="Address" Value="@(_customer.Address ?? "—")" />
+            <ReadOnlyRow Label="Notes" Value="@(_customer.Notes ?? "—")" />
+            <ReadOnlyRow Label="Created" Value="@_customer.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")" />
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1">
+                <QuickActivityForm CustomerId="Id" OnSaved="ReloadTimeline" />
+            </div>
+            <div class="lg:col-span-2">
+                <div class="bg-white border border-slate-200 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-slate-700 mb-3">Activity Timeline</h3>
+                    <ActivityTimeline Activities="_activities" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<ConfirmDialog IsOpen="_showDeleteConfirm"
+               Title="Delete customer?"
+               Message="This will hide the customer from all views."
+               ConfirmLabel="Delete"
+               Busy="_deleting"
+               OnConfirm="HandleDelete"
+               OnCancel="CloseDeleteConfirm" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private CustomerDto? _customer;
+    private List<ActivityDto> _activities = new();
+    private bool _loading = true;
+    private bool _deleting;
+    private bool _showDeleteConfirm;
+    private string? _errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+
+        _customer = await CustomerService.GetByIdAsync(Id);
+        _activities = await ActivityService.GetTimelineForCustomerAsync(Id);
+
+        _loading = false;
+
+        if (_customer is null)
+        {
+            Nav.NavigateTo("/customers");
+        }
+    }
+
+    private async Task ReloadTimeline()
+    {
+        _activities = await ActivityService.GetTimelineForCustomerAsync(Id);
+        StateHasChanged();
+    }
+
+    private void BackToList() => Nav.NavigateTo("/customers");
+    private void GoToEdit() => Nav.NavigateTo($"/customers/{Id}/edit");
+    private void OpenDeleteConfirm() => _showDeleteConfirm = true;
+    private void CloseDeleteConfirm() => _showDeleteConfirm = false;
+
+    private async Task HandleDelete()
+    {
+        _deleting = true;
+        try
+        {
+            var result = await CustomerService.DeleteAsync(Id);
+            if (result.IsSuccess)
+                Nav.NavigateTo("/customers");
+            else
+            {
+                _errorMessage = result.Error;
+                _showDeleteConfirm = false;
+            }
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+}

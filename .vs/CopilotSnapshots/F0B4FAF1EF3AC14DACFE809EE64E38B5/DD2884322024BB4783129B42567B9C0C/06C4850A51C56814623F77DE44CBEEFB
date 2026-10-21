@@ -1,0 +1,99 @@
+﻿@page "/seed-test"
+@rendermode InteractiveServer
+@using OrbitCRM.Application.Common.Interfaces
+@using OrbitCRM.Application.Common.Models
+@using OrbitCRM.Application.Customers.DTOs
+@using OrbitCRM.Application.Customers.Interfaces
+@inject ICustomerService CustomerService
+@inject ICurrentTenant CurrentTenant
+
+<h3>Customer Service Test</h3>
+
+<p><strong>Current Tenant:</strong> @(CurrentTenant.HasTenant ? CurrentTenant.TenantId.ToString() : "none")</p>
+
+<button class="btn btn-primary" @onclick="CreateTestCustomer">Create Test Customer</button>
+<button class="btn btn-secondary" @onclick="LoadCustomers">Reload List</button>
+
+@if (!string.IsNullOrEmpty(_message))
+{
+    <p style="margin-top: 1rem; color: @(_isError ? "red" : "green");">@_message</p>
+}
+
+@if (_customers is not null)
+{
+    <h4 style="margin-top: 2rem;">Customers (@_customers.TotalCount total)</h4>
+
+    @if (_customers.Items.Count == 0)
+    {
+        <p><em>No customers yet. Click "Create Test Customer".</em></p>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in _customers.Items)
+                {
+                    <tr>
+                        <td>@c.FullName</td>
+                        <td>@c.Email</td>
+                        <td>@c.CompanyName</td>
+                        <td>@c.CreatedAt.ToLocalTime().ToString("g")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private PagedResult<CustomerDto>? _customers;
+    private string? _message;
+    private bool _isError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        _customers = await CustomerService.GetAllAsync(page: 1, pageSize: 20);
+        _message = null;
+    }
+
+    private async Task CreateTestCustomer()
+    {
+        var suffix = DateTime.UtcNow.Ticks.ToString()[^6..];
+        var dto = new CreateCustomerDto
+        {
+            FirstName = "Test",
+            LastName = $"Customer {suffix}",
+            Email = $"test{suffix}@example.com",
+            Phone = "+234 800 000 0000",
+            CompanyName = "Test Co Ltd",
+            Address = "Lagos, Nigeria"
+        };
+
+        var result = await CustomerService.CreateAsync(dto);
+
+        if (result.IsSuccess)
+        {
+            _message = $"Created customer {result.Value}.";
+            _isError = false;
+            await LoadCustomers();
+        }
+        else
+        {
+            _message = $"Error: {result.Error}";
+            _isError = true;
+        }
+    }
+}

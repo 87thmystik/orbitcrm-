@@ -1,0 +1,262 @@
+﻿@page "/customers/{Id:guid}"
+@rendermode InteractiveServer
+@using OrbitCRM.Application.Activities.DTOs
+@using OrbitCRM.Application.Activities.Interfaces
+@using OrbitCRM.Application.Customers.DTOs
+@using OrbitCRM.Application.Customers.Interfaces
+@using OrbitCRM.Application.Deals.DTOs
+@using OrbitCRM.Application.Deals.Interfaces
+@using OrbitCRM.Application.Tasks.DTOs
+@using OrbitCRM.Application.Tasks.Interfaces
+@using OrbitCRM.Domain.Enums
+@inject ICustomerService CustomerService
+@inject IActivityService ActivityService
+@inject IDealService DealService
+@inject ITaskService TaskService
+@inject NavigationManager Nav
+
+<PageTitle>@(_customer?.FullName ?? "Customer") · OrbitCRM</PageTitle>
+
+<div class="max-w-4xl">
+    <button class="text-sm text-slate-500 hover:text-slate-700 mb-4" @onclick="BackToList">
+        ← Back to Customers
+    </button>
+
+    @if (_loading)
+    {
+        <p class="text-slate-500 text-sm py-8">Loading…</p>
+    }
+    else if (_customer is null)
+    {
+        <div class="bg-white border border-slate-200 rounded-lg p-6">
+            <p class="text-slate-500 text-sm">Customer not found.</p>
+        </div>
+    }
+    else
+    {
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-semibold text-slate-900">@_customer.FullName</h1>
+                <p class="text-sm text-slate-500 mt-1">@(_customer.CompanyName ?? "Individual")</p>
+            </div>
+
+            <div class="flex gap-2">
+                <button class="px-3 py-1.5 text-sm border border-slate-300 rounded-md hover:bg-slate-50" @onclick="GoToEdit">Edit</button>
+                <button class="px-3 py-1.5 text-sm bg-red-600 hover:bg-red-700 text-white rounded-md" @onclick="OpenDeleteConfirm">Delete</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 text-red-800 text-sm rounded-md">@_errorMessage</div>
+        }
+
+        <!-- Tabs -->
+        <div class="border-b border-slate-200 mb-6 flex gap-6">
+            <button class="pb-3 text-sm font-medium border-b-2 @(_activeTab == "overview" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700")"
+                    @onclick="ShowOverview">
+                Overview
+            </button>
+            <button class="pb-3 text-sm font-medium border-b-2 @(_activeTab == "deals" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700")"
+                    @onclick="ShowDeals">
+                Deals (@_deals.Count)
+            </button>
+            <button class="pb-3 text-sm font-medium border-b-2 @(_activeTab == "tasks" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700")"
+                    @onclick="ShowTasks">
+                Tasks (@_tasks.Count)
+            </button>
+            <button class="pb-3 text-sm font-medium border-b-2 @(_activeTab == "timeline" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700")"
+                    @onclick="ShowTimeline">
+                Timeline
+            </button>
+        </div>
+        <!-- Tab Content -->
+        @if (_activeTab == "overview")
+        {
+            <div class="bg-white border border-slate-200 rounded-lg p-6 space-y-4">
+                <ReadOnlyRow Label="Email" Value="@_customer.Email" />
+                <ReadOnlyRow Label="Phone" Value="@(_customer.Phone ?? "—")" />
+                <ReadOnlyRow Label="Address" Value="@(_customer.Address ?? "—")" />
+                <ReadOnlyRow Label="Notes" Value="@(_customer.Notes ?? "—")" />
+                <ReadOnlyRow Label="Created" Value="@_customer.CreatedAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")" />
+            </div>
+        }
+        else if (_activeTab == "deals")
+        {
+            @if (_deals.Count == 0)
+            {
+                <div class="bg-white border border-slate-200 rounded-lg p-8 text-center text-slate-500 text-sm">
+                    No open deals for this customer.
+                </div>
+            }
+            else
+            {
+                <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                    @foreach (var deal in _deals)
+                    {
+                        var capturedDeal = deal;
+                        <div class="p-4 border-b border-slate-100 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                             @onclick="() => GoToDeal(capturedDeal.Id)">
+                            <div>
+                                <div class="font-medium text-slate-900">@capturedDeal.Name</div>
+                                <div class="text-sm text-slate-500 mt-0.5">
+                                    <StageBadge Name="capturedDeal.PipelineStageName" Color="capturedDeal.PipelineStageColor" />
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-semibold text-slate-900">@capturedDeal.Value.ToString("C0")</div>
+                                <div class="text-xs text-slate-500 mt-0.5">
+                                    Expected: @(capturedDeal.ExpectedCloseDate?.ToLocalTime().ToString("MMM d") ?? "—")
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else if (_activeTab == "tasks")
+        {
+            @if (_tasks.Count == 0)
+            {
+                <div class="bg-white border border-slate-200 rounded-lg p-8 text-center text-slate-500 text-sm">
+                    No open tasks for this customer.
+                </div>
+            }
+            else
+            {
+                <div class="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                    @foreach (var task in _tasks)
+                    {
+                        var capturedTask = task;
+                        <div class="p-4 border-b border-slate-100 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                             @onclick="() => GoToTask(capturedTask.Id)">
+                            <div class="flex items-center gap-3">
+                                <PriorityBadge Priority="capturedTask.Priority" />
+                                <div class="font-medium text-slate-900">@capturedTask.Title</div>
+                            </div>
+                            <div class="text-sm @(capturedTask.IsOverdue ? "text-red-600 font-medium" : "text-slate-500")">
+                                Due: @(capturedTask.DueDate?.ToLocalTime().ToString("MMM d") ?? "—")
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else if (_activeTab == "timeline")
+        {
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-1">
+                    <QuickActivityForm CustomerId="Id" OnSaved="ReloadTimeline" />
+                </div>
+                <div class="lg:col-span-2">
+                    <div class="bg-white border border-slate-200 rounded-lg p-4">
+                        <h3 class="text-sm font-medium text-slate-700 mb-3">Activity Timeline</h3>
+                        <ActivityTimeline Activities="_activities" />
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<ConfirmDialog IsOpen="_showDeleteConfirm"
+               Title="Delete customer?"
+               Message="This will hide the customer from all views."
+               ConfirmLabel="Delete"
+               Busy="_deleting"
+               OnConfirm="HandleDelete"
+               OnCancel="CloseDeleteConfirm" />
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private CustomerDto? _customer;
+    private List<ActivityDto> _activities = new();
+    private List<DealDto> _deals = new();
+    private List<TaskDto> _tasks = new();
+
+    private string _activeTab = "overview";
+    private bool _loading = true;
+    private bool _deleting;
+    private bool _showDeleteConfirm;
+    private string? _errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+
+        _customer = await CustomerService.GetByIdAsync(Id);
+
+        if (_customer is not null)
+        {
+            _activities = await ActivityService.GetTimelineForCustomerAsync(Id);
+            _deals = await DealService.GetDealsForCustomerAsync(Id);
+            _tasks = await TaskService.GetTasksForCustomerAsync(Id);
+        }
+
+        _loading = false;
+
+        if (_customer is null) Nav.NavigateTo("/customers");
+    }
+
+    private void ShowOverview() => _activeTab = "overview";
+    private void ShowDeals() => _activeTab = "deals";
+    private void ShowTasks() => _activeTab = "tasks";
+    private void ShowTimeline() => _activeTab = "timeline";
+    private async Task ReloadTimeline()
+    {
+        _activities = await ActivityService.GetTimelineForCustomerAsync(Id);
+        StateHasChanged();
+    }
+
+    private void BackToList()
+    {
+        Nav.NavigateTo("/customers");
+    }
+
+    private void GoToEdit()
+    {
+        Nav.NavigateTo($"/customers/{Id}/edit");
+    }
+
+    private void GoToDeal(Guid dealId)
+    {
+        Nav.NavigateTo($"/deals/{dealId}");
+    }
+
+    private void GoToTask(Guid taskId)
+    {
+        Nav.NavigateTo($"/tasks/{taskId}");
+    }
+
+    private void OpenDeleteConfirm()
+    {
+        _showDeleteConfirm = true;
+    }
+
+    private void CloseDeleteConfirm()
+    {
+        _showDeleteConfirm = false;
+    }
+
+    private async Task HandleDelete()
+    {
+        _deleting = true;
+        try
+        {
+            var result = await CustomerService.DeleteAsync(Id);
+            if (result.IsSuccess)
+                Nav.NavigateTo("/customers");
+            else
+            {
+                _errorMessage = result.Error;
+                _showDeleteConfirm = false;
+            }
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
+}

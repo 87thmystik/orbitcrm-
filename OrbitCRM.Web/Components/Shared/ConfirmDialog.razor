@@ -1,0 +1,50 @@
+﻿@if (IsOpen)
+{
+    <div class="fixed inset-0 z-[9999] flex items-center justify-center" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/50" @onclick="HandleCancel"></div>
+
+        <div class="relative bg-white rounded-lg shadow-2xl w-full max-w-md mx-4 p-6 z-10">
+            <h3 class="text-lg font-semibold text-slate-900 mb-2">@Title</h3>
+            <p class="text-sm text-slate-600 mb-6">@Message</p>
+
+            <div class="flex justify-end gap-2">
+                <button type="button"
+                        class="px-4 py-2 text-sm rounded-md border border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                        @onclick="HandleCancel"
+                        disabled="@Busy">
+                    Cancel
+                </button>
+                <button type="button"
+                        class="px-4 py-2 text-sm rounded-md text-white disabled:opacity-60 @(Destructive ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-700")"
+                        @onclick="HandleConfirm"
+                        disabled="@Busy">
+                    @(Busy ? "Working…" : ConfirmLabel)
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public string Title { get; set; } = "Confirm";
+    [Parameter] public string Message { get; set; } = "Are you sure?";
+    [Parameter] public string ConfirmLabel { get; set; } = "Confirm";
+    [Parameter] public bool Destructive { get; set; } = true;
+    [Parameter] public bool Busy { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private async Task HandleConfirm()
+    {
+        if (Busy) return;
+        await OnConfirm.InvokeAsync();
+    }
+
+    private async Task HandleCancel()
+    {
+        if (Busy) return;
+        await OnCancel.InvokeAsync();
+    }
+}

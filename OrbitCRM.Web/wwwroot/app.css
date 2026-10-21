@@ -1,0 +1,34 @@
+/* Blazor reserved styles */
+#blazor-error-ui {
+    background: #fef3c7;
+    bottom: 0;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+    display: none;
+    left: 0;
+    padding: 0.75rem 1.5rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 1rem;
+        top: 0.5rem;
+    }
+
+/* Blazor EditForm emits these classes — style them so validation looks right */
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #22c55e;
+}
+
+.invalid {
+    outline: 1px solid #ef4444;
+}
+
+.validation-message {
+    color: #ef4444;
+    font-size: 0.8125rem;
+    margin-top: 0.25rem;
+}

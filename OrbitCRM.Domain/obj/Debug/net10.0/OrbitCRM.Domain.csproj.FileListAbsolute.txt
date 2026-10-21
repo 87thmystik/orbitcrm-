@@ -1,0 +1,13 @@
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\bin\Debug\net10.0\OrbitCRM.Domain.deps.json
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\bin\Debug\net10.0\OrbitCRM.Domain.dll
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\bin\Debug\net10.0\OrbitCRM.Domain.pdb
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.Domain.csproj.AssemblyReference.cache
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.Domain.AssemblyInfoInputs.cache
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.Domain.AssemblyInfo.cs
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.Domain.csproj.CoreCompileInputs.cache
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.Domain.dll
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\refint\OrbitCRM.Domain.dll
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.Domain.pdb
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\ref\OrbitCRM.Domain.dll
+C:\Users\danie\source\repos\OrbitCRM.Web\OrbitCRM.Domain\obj\Debug\net10.0\OrbitCRM.241FCEA1.Up2Date

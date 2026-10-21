@@ -1,0 +1,11 @@
+﻿@import "tailwindcss";
+
+@source "../Components/**/*.razor";
+@source "../Components/**/*.razor.cs";
+
+@theme {
+    --color-brand: #1b6ec2;
+    --color-brand-dark: #155a9e;
+    --color-sidebar-start: #052767;
+    --color-sidebar-end: #3a0647;
+}
